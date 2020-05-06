@@ -68,6 +68,9 @@ ss <- ints[, c(5,14,15,16,17,19,20,27,28,33,41,42)]
 # Follow up time
 #boxplot2(meta$DIAGSAMPLING ~ meta$MENOPAUSE, varwidth = T, col = "dodgerblue")
 
+# Identification of triple negative cases
+#sum(meta$CERB2 == 0 & meta$ER == 0 & meta$PR == 0, na.rm = T)
+#sum(meta$ER == 0 & meta$PR == 0, na.rm = T)
 
 
 
