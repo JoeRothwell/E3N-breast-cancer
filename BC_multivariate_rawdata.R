@@ -76,11 +76,11 @@ plot(props.raw)
 
 # Greatest sources of variability are BMI > DIABETE > PLACE
 # Adjust for fixed effects only. Random effects model with lme4 did not work, boundary fit or didn't converge
-# Note: NAs in CENTTIME, so adjusted matrix gets subset
-adj <- function(x) residuals(lm(x ~ PLACE + WEEKS + DIABETE + FASTING + #CENTTIMECat1 + 
+# Note: NAs in CENTTIME, so adjusted matrix loses these 10 observations
+adj <- function(x) residuals(lm(x ~ PLACE + WEEKS + DIABETE + FASTING + CENTTIMECat1 + 
                                   STOCKTIME, data = meta))
 adjmat <- apply(concs, 2, adj)
-saveRDS(adjmat, "adjusted_NMR_features.rds")
+#saveRDS(adjmat, "adjusted_NMR_features.rds")
 
 props.adj <- runPCPR2(adjmat, Z_Meta)
 
@@ -100,10 +100,12 @@ pca2d(scores.adj, group = scores$MENOPAUSE)
 # Multivariate analysis. Subsets to be made:
 # 1. All samples; 2. Pre-menopausal only; 3. Post-menopausal only; 4. Diagnosed < 5 years only; 
 # 5. Diagnosed > 5 years only; 6. Pre-menopausal or no HT; 7. Post-menopausal and HT.
-adjmat <- load("adjusted_NMR_features.rds")
+#adjmat <- readRDS("adjusted_NMR_features.rds")
+#adjmat <- readRDS("adjusted_NMR_features_no_age.rds")
 
 # First give each control the time to diagnosis time of the corresponding case
-meta <- meta %>% group_by(MATCH) %>% mutate(tdiag = max(as.numeric(DIAGSAMPLINGCat1), na.rm = T))
+meta <- meta %>% group_by(MATCH) %>% mutate(tdiag = max(as.numeric(DIAGSAMPLINGCat1), na.rm = T)) %>%
+  filter(!is.na(CENTTIME))
 
 all <- data.frame(class = as.factor(meta$CT), adjmat)
 
@@ -152,14 +154,19 @@ p0 <- bc.roc(all, k = 10)
 p1 <- bc.roc(all[post, ], k = 10)
 p2 <- bc.roc(all[pre, ], k = 5, times = 5)
 p3 <- bc.roc(all[early, ], k = 10)
+
 p4 <- bc.roc(all[late, ], k = 10)
 p5 <- bc.roc(all[noHT, ], k = 10)
 p6 <- bc.roc(all[HT, ], k = 10)
 
+
+par(mfrow=c(2,2))
 plot.roc(p0, ci = T, grid = T, print.auc = T)
 plot.roc(p1, grid = T, print.auc = T)
 plot.roc(p2, grid = T, print.auc = T)
 plot.roc(p3, grid = T, print.auc = T)
+
+
 plot.roc(p4, grid = T, print.auc = T)
 plot.roc(p5, grid = T, print.auc = T)
 plot.roc(p6, grid = T, print.auc = T)
