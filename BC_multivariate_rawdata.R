@@ -3,19 +3,19 @@
 
 library(tidyverse)
 library(readxl)
-dat <- read_tsv("1510_XAlignedE3NcpmgssCitPEGfinal.txt") %>% select(-8501)
-meta <- read_xlsx("1510_MatriceY_CohorteE3N_Appar.xlsx", sheet = 4, na = ".")
+rawints <- read_tsv("1510_XAlignedE3NcpmgssCitPEGfinal.txt") %>% select(-8501)
+bc.meta <- read_xlsx("1510_MatriceY_CohorteE3N_Appar.xlsx", sheet = 4, na = ".")
 
 # Dataset containing all samples, QCs and blanks
 #mat <- read_delim("X_AlignedE3NData_cpmg_ssCitPEG_1112.txt", delim = ";", n_max = 1738) 
 
 # Subset samples only and plot PCA with pareto scaling
-prep.data <- function(incl.qc = F, pc.scores = T) {
+prep.data <- function(dat, meta, drop.qc = T, get.pca = T) {
     
   # Subset samples only (removing 112 QCs) from data and metadata
   samp <- !is.na(meta$THAW_DATE)
-  mat  <- if(incl.qc == F) dat[samp, ] %>% as.matrix else as.matrix(dat)
-  meta <- if(incl.qc == F) meta[samp, ]
+  mat  <- if(drop.qc == T) dat[samp, ] %>% as.matrix else as.matrix(dat)
+  meta <- if(drop.qc == T) meta[samp, ]
 
   #anyNA(mat)
   #sum(apply(mat, 2, anyNA))
@@ -35,14 +35,14 @@ prep.data <- function(incl.qc = F, pc.scores = T) {
   library(MetabolAnalyze)
   scalemat <- scaling(mat0, type = "pareto")
   
-  if(pc.scores == F) return(list(scalemat, meta))
+  if(get.pca == F) return(list(scalemat, meta))
   pca <- prcomp(scalemat, scale. = F, center = T, rank. = 10)
   output <- data.frame(pca$x) %>% bind_cols(meta)
 }
 
-scores <- prep.data()
+scores <- prep.data(rawints, bc.meta, get.pca = T)
 
-# Scores plot for manuscript
+# Output PCA scores plot for manuscript
 library(ggplot2)
 ggplot(scores, aes(PC1, PC2, colour = as.factor(TYPE_ECH))) + geom_point() + theme_bw() +
   xlab("Score on PC1") + ylab("Score on PC2") +
@@ -56,10 +56,8 @@ library(pca3d)
 pca2d(as.matrix(scores[, 1:10]), group = scores$WEEKS)
 box(which = "plot", lty = "solid")
 
-# ----------------------------------------------------------------------------------------------------------
-
-# Output Pareto-scaled data and perform PCPR2
-dat <- prep.data(pc.scores = F)
+# Output Pareto-scaled intensities and corresponding metadata for multivariate analysis
+dat <- prep.data(rawints, bc.meta, get.pca = F)
 
 concs <- dat[[1]]
 meta <- dat[[2]] %>%
@@ -68,34 +66,44 @@ meta <- dat[[2]] %>%
   mutate_at(vars(-AGE, -BMI, -CENTTIME, -DIAGSAMPLINGCat1, -DURTHSBMB), as.factor) %>%
   mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0))
 
+#----
+
+# PC-PR2 to find main sources of variability and remove using residuals method
+# (for manuscript; can skip straight to calculation of adjusted matrix)
 Z_Meta <- meta %>% select(-MATCH, -CT, -CENTTIME, -DIAGSAMPLINGCat1)
 
 library(pcpr2)
 props.raw <- runPCPR2(concs, Z_Meta)
 plot(props.raw)
-
 # Greatest sources of variability are BMI > DIABETE > PLACE
+
+# ----
+
 # Adjust for fixed effects only. Random effects model with lme4 did not work, boundary fit or didn't converge
 # Note: NAs in CENTTIME, so adjusted matrix loses these 10 observations
 adj <- function(x) residuals(lm(x ~ PLACE + WEEKS + DIABETE + FASTING + CENTTIMECat1 + 
                                   STOCKTIME, data = meta))
 adjmat <- apply(concs, 2, adj)
+# Final data matrix used for models below
 #saveRDS(adjmat, "adjusted_NMR_features.rds")
 
+#----
+
+# PCPR2 of transformed matrix
 props.adj <- runPCPR2(adjmat, Z_Meta)
 
 par(mfrow = c(1, 2))
 plot(props.raw, main = "Raw feature intensities", font.main = 1)
 plot(props.adj, main = "Transformed to residuals of linear model of intensity on confounders*", font.main = 1)
 
-# Check PCA of transformed matrix
+# Can also check PCA 
 library(pca3d)
 scores.adj <- prcomp(adjmat, scale. = F)
 pca2d(scores.adj, group = scores$MENOPAUSE)
 
-# Final data matrix is adjmat, n = 1572
+#----
 
-#--------------------------------------------------------------------------------------------------
+# Final data matrix is adjmat, n = 1572
 
 # Multivariate analysis. Subsets to be made:
 # 1. All samples; 2. Pre-menopausal only; 3. Post-menopausal only; 4. Diagnosed < 5 years only; 
@@ -114,13 +122,15 @@ pre   <- meta$MENOPAUSE == 0
 post  <- meta$MENOPAUSE == 1 
 early <- meta$tdiag == 1
 late  <- meta$tdiag == 2
-noHT  <- meta$DURTHSBMBCat == 0
-HT    <- meta$DURTHSBMBCat == 1
+young <- meta$AGE < 55
+old   <- meta$AGE >= 55
+#noHT  <- meta$DURTHSBMBCat == 0
+#HT    <- meta$DURTHSBMBCat == 1
 
 library(caret)
 library(pROC)
 # Function to train and fit the model and do a ROC analysis
-bc.roc <- function(dat, ...) {
+bc.roc <- function(dat, get.roc = T, ...) {
   
   # Split into training and test sets on class, 75% to training set
   inTrain <- createDataPartition(y = dat$class, p = 0.75, list = F)
@@ -142,7 +152,9 @@ bc.roc <- function(dat, ...) {
   
   # Predict test set
   predictions0 <- predict(mod0, newdata = testing)
-  confusionMatrix(predictions0, reference = testing$class)
+  
+  cM <- confusionMatrix(predictions0, reference = testing$class)
+  if(get.roc == F) return(cM)
   
   # Get AUC
   predictions0_1 <- predict(mod0, newdata = testing, type = "prob")
@@ -155,9 +167,17 @@ p1 <- bc.roc(all[post, ], k = 10)
 p2 <- bc.roc(all[pre, ], k = 5, times = 5)
 p3 <- bc.roc(all[early, ], k = 10)
 
+
+a0 <- bc.roc(all, k = 10, get.roc = F)
+a1 <- bc.roc(all[post, ], k = 10, get.roc = F)
+a2 <- bc.roc(all[pre, ], k = 5, times = 5, get.roc = F)
+a3 <- bc.roc(all[early, ], k = 10, get.roc = F)
+
+
+
 p4 <- bc.roc(all[late, ], k = 10)
-p5 <- bc.roc(all[noHT, ], k = 10)
-p6 <- bc.roc(all[HT, ], k = 10)
+#p5 <- bc.roc(all[noHT, ], k = 10)
+#p6 <- bc.roc(all[HT, ], k = 10)
 
 
 par(mfrow=c(2,2))
