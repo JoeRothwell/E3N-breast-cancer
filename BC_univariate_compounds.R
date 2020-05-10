@@ -163,12 +163,10 @@ tidy.output <- function(mod) {
   # Make columns
   df$P.value    <- round(df$p.value, 3)
   df$FDR        <- round(p.adjust(df$p.value, method = "fdr"), 3)
-  df$Bonferroni <- round(p.adjust(df$p.value, method = "bonferroni"), 3)
   df$CI.95      <- paste("(", df$conf.low, ", ", df$conf.high, ")", sep = "")
 
   # Select columns and order
-  output <- df %>% 
-    select(Compound = "display_name", "description", "OR", "CI.95", "P.value", "FDR", "Bonferroni") %>%
+  output <- df %>% select(Compound = "display_name", "description", "OR", "CI.95", "P.value", "FDR") %>%
     arrange(description)
   
 }
@@ -179,12 +177,15 @@ post <- tidy.output(fits2)
 pre.eth <- tidy.output(fits1e)
 
 # Retain only metabolite groups with at least one p-value < 0.05
-tab <- bind_rows("All" = all, "Pre" = pre, "Post" = post, .id = "Analysis") %>%
-  group_by(Compound) %>% filter(min(P.value) < 0.05) %>% 
-  select(Compound, description, everything()) %>%
-  arrange(description, Compound) %>% as.data.frame
+tab <- bind_rows("All" = all, "Post" = post, "Pre" = pre, "Pre.eth" = pre.eth, .id = "Group") %>%
+  arrange(Group, -OR) %>% 
+  group_by(Compound) %>%
+  filter(min(FDR) < 0.05) %>%
+  select(Compound, description, everything()) 
 # Copy and paste this into manuscript via Excel
 
+
+# Output with stargazer (abandoned, easier to go through Excel)
 library(stargazer)
 stargazer(tab, summary = F, type = "html", out = "metabolite_table_selected_new.html")
 
