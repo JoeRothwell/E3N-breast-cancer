@@ -16,7 +16,7 @@ base <- ggplot(t1, aes(exp(estimate), log10(p.value))) + geom_point() + theme_bw
 
 p1 <- 
   base %+% xlim(0.8, 1.2) +
-  scale_y_reverse(breaks = c(-2, -1, 0), labels = function(x) 10^x) +
+  scale_y_reverse(limits = c(0, -2.5), breaks = c(0:-2), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t1[t1$p.value < 0.3, ]) + 
   geom_hline(yintercept = log10(0.05), linetype = "dashed") + ggtitle("All subjects")
 
@@ -31,7 +31,7 @@ t2 <- map_df(fits1, tidy) %>% filter(str_detect(term, "x")) %>%
 
 p2 <- 
   base %+% t2 + xlim(0.3, 1.7) +
-  scale_y_reverse(breaks = c(-3, -2, -1, 0), labels = function(x) 10^x) +
+  scale_y_reverse(limits = c(0, -3.9), breaks = c(0:-3), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t2[t2$p.value < 0.04, ] ) +
   geom_hline(yintercept = c(log10(0.05), log10(0.014)), linetype = c("dashed", "dotted")) +
   ggtitle("Pre-menopausal")
@@ -46,8 +46,8 @@ t3 <- map_df(fits2, tidy) %>% filter(str_detect(term, "x")) %>%
   mutate(p.valueFDR = p.adjust(p.value, method = "fdr")) %>% bind_cols(cmpd.meta)
 
 p3 <-
-  base %+% t3 + xlim(0.85, 1.15) + 
-  scale_y_reverse(breaks = c(-2, -1, 0), labels = function(x) 10^x) +
+  base %+% t3 + xlim(0.8, 1.2) + 
+  scale_y_reverse(limits = c(0, -2.5), breaks = c(0:-2), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t3[t3$p.value < 0.15, ]) +
   geom_hline(yintercept = log10(0.05), linetype = "dashed") +
   ggtitle("Post-menopausal")
@@ -66,8 +66,9 @@ t4 <- map_df(fits1e, tidy) %>% filter(str_detect(term, "x")) %>%
 
 
 p4 <- 
-  base %+% t4 + xlim(c(0.4, 1.6)) +
-  scale_y_reverse(breaks = c(-3, -2, -1, 0), labels = function(x) 10^x) +
+  base %+% t4 + xlim(c(0.3, 1.7)) +
+  scale_y_reverse(limits = c(0, -3.9), breaks = c(0:-3), labels = function(x) 10^x) +
+  #scale_y_reverse(breaks = c(-4, -3, -2, -1, 0), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t4[t4$p.value < 0.04, ] ) +
   geom_hline(yintercept = c(log10(0.05), log10(0.001)), linetype = c("dashed", "dotted")) +
   ggtitle("Pre-menopausal, adjusted for plasma ethanol")
