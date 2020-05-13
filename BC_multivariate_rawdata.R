@@ -62,7 +62,7 @@ dat <- prep.data(rawints, bc.meta, get.pca = F)
 concs <- dat[[1]]
 meta <- dat[[2]] %>%
   select(CT, MATCH, WEEKS, PLACE, AGE, BMI, MENOPAUSE, FASTING, SMK, DIABETE, CENTTIMECat1, CENTTIME, SAMPYEAR, 
-         DIAGSAMPLINGCat1, STOCKTIME, DURTHSBMB) %>%
+         DIAGSAMPLINGCat1, DIAGSAMPLINGCat4, STOCKTIME, DURTHSBMB) %>%
   mutate_at(vars(-AGE, -BMI, -CENTTIME, -DIAGSAMPLINGCat1, -DURTHSBMB), as.factor) %>%
   mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0))
 
@@ -113,6 +113,7 @@ pca2d(scores.adj, group = scores$MENOPAUSE)
 
 # First give each control the time to diagnosis time of the corresponding case
 meta <- meta %>% group_by(MATCH) %>% mutate(tdiag = max(as.numeric(DIAGSAMPLINGCat1), na.rm = T)) %>%
+  mutate(tdiag1 = max(as.numeric(DIAGSAMPLINGCat4), na.rm = T)) %>%
   filter(!is.na(CENTTIME))
 
 all <- data.frame(class = as.factor(meta$CT), adjmat)
@@ -122,10 +123,9 @@ pre   <- meta$MENOPAUSE == 0
 post  <- meta$MENOPAUSE == 1 
 early <- meta$tdiag == 1
 late  <- meta$tdiag == 2
-young <- meta$AGE < 55
-old   <- meta$AGE >= 55
-#noHT  <- meta$DURTHSBMBCat == 0
-#HT    <- meta$DURTHSBMBCat == 1
+agehi <- meta$AGE < 55
+agelo <- meta$AGE >= 55
+early2 <- meta$tdiag1 == 1
 
 library(caret)
 library(pROC)
@@ -152,44 +152,45 @@ bc.roc <- function(dat, get.roc = T, ...) {
   
   # Predict test set
   predictions0 <- predict(mod0, newdata = testing)
-  
   cM <- confusionMatrix(predictions0, reference = testing$class)
   if(get.roc == F) return(cM)
-  
   # Get AUC
-  predictions0_1 <- predict(mod0, newdata = testing, type = "prob")
-  result0 <- roc(testing$class, predictions0_1$`0`, ci = T)
+  predictions1 <- predict(mod0, newdata = testing, type = "prob")
+  result0 <- roc(testing$class, predictions1$`0`, ci = T)
   
 }
 
 p0 <- bc.roc(all, k = 10)
 p1 <- bc.roc(all[post, ], k = 10)
 p2 <- bc.roc(all[pre, ], k = 5, times = 5)
-p3 <- bc.roc(all[early, ], k = 10)
+p3 <- bc.roc(all[agehi, ], k = 10)
+p4 <- bc.roc(all[agelo, ], k = 10)
+p5 <- bc.roc(all[year5, ], k = 10)
+p6 <- bc.roc(all[year2, ], k = 5, times = 5)
 
+apply(list(p1, p2, p3, p4, p5, p6), )
+list(p1, p2, p3, p4, p5, p6) %>% map(1)
+pluck(p1, 9)
 
 a0 <- bc.roc(all, k = 10, get.roc = F)
 a1 <- bc.roc(all[post, ], k = 10, get.roc = F)
 a2 <- bc.roc(all[pre, ], k = 5, times = 5, get.roc = F)
-a3 <- bc.roc(all[early, ], k = 10, get.roc = F)
+a3 <- bc.roc(all[agehi, ], k = 10, get.roc = F)
+a4 <- bc.roc(all[agelo, ], k = 10, get.roc = F)
+a5 <- bc.roc(all[early, ], k = 10, get.roc = F)
 
+#save.image("ROC_workspace.RData")
+load("ROC_workspace.RData")
 
-
-p4 <- bc.roc(all[late, ], k = 10)
-#p5 <- bc.roc(all[noHT, ], k = 10)
-#p6 <- bc.roc(all[HT, ], k = 10)
-
-
-par(mfrow=c(2,2))
+par(mfrow=c(2,1))
 plot.roc(p0, ci = T, grid = T, print.auc = T)
 plot.roc(p1, grid = T, print.auc = T)
 plot.roc(p2, grid = T, print.auc = T)
 plot.roc(p3, grid = T, print.auc = T)
-
-
 plot.roc(p4, grid = T, print.auc = T)
 plot.roc(p5, grid = T, print.auc = T)
 plot.roc(p6, grid = T, print.auc = T)
+plot.roc(p7, grid = T, print.auc = T)
 
 #save.image("ROC_workspace.RData")
 
