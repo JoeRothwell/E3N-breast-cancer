@@ -1,70 +1,38 @@
 # Breast cancer study multivariate models from unbinned NMR raw data, data from Elodie Jobard 27-6-2019
 # Read in data with outliers and QCs (n=1739) or with QCs only
-
 library(tidyverse)
 library(readxl)
+library(janitor)
+library(MetabolAnalyze)
 rawints <- read_tsv("1510_XAlignedE3NcpmgssCitPEGfinal.txt") %>% select(-8501)
 bc.meta <- read_xlsx("1510_MatriceY_CohorteE3N_Appar.xlsx", sheet = 4, na = ".")
 
-# Dataset containing all samples, QCs and blanks
-#mat <- read_delim("X_AlignedE3NData_cpmg_ssCitPEG_1112.txt", delim = ";", n_max = 1738) 
+# PCA scores plots (THAW_DATE removes QCs/blanks)
+dat1 <- rawints %>% remove_constant() %>% as.matrix
+pca <- prcomp(scaling(dat1, type = "pareto"), scale. = F)
+pca2d(pca, group = bc.meta$WEEKS)
+box(which = "plot", lty = "solid")
 
-# Subset samples only and plot PCA with pareto scaling
-prep.data <- function(dat, meta, drop.qc = T, get.pca = T) {
-    
-  # Subset samples only (removing 112 QCs) from data and metadata
-  samp <- !is.na(meta$THAW_DATE)
-  mat  <- if(drop.qc == T) dat[samp, ] %>% as.matrix else as.matrix(dat)
-  meta <- if(drop.qc == T) meta[samp, ]
-
-  #anyNA(mat)
-  #sum(apply(mat, 2, anyNA))
-  
-  # remove zero variance columns
-  zerovar <- sum(apply(mat, 2, var) == 0)
-  print(paste("There are", zerovar, "zero variance columns"))
-  
-  # There are 1116. Place in logical vector
-  nonzerovar <- apply(mat, 2, var) != 0
-  which(nonzerovar)
-  
-  mat0 <- mat[ , nonzerovar]
-  print(paste("Dimensions", dim(mat0)))
-
-  # Scale and run PCA  
-  library(MetabolAnalyze)
-  scalemat <- scaling(mat0, type = "pareto")
-  
-  if(get.pca == F) return(list(scalemat, meta))
-  pca <- prcomp(scalemat, scale. = F, center = T, rank. = 10)
-  output <- data.frame(pca$x) %>% bind_cols(meta)
-}
-
-scores <- prep.data(rawints, bc.meta, get.pca = T)
-
-# Output PCA scores plot for manuscript
 library(ggplot2)
-ggplot(scores, aes(PC1, PC2, colour = as.factor(TYPE_ECH))) + geom_point() + theme_bw() +
+ggplot(data.frame(pca$x), aes(PC1, PC2, colour = as.factor(bc.meta$TYPE_ECH))) + geom_point() + theme_bw() +
   xlab("Score on PC1") + ylab("Score on PC2") +
-  scale_color_discrete(labels = c("Experimental samples", "QCs")) +
-  theme(legend.position = "bottom", #legend.justification = c(0, 0), 
-        legend.title = element_blank()) +
+  scale_color_discrete(labels = c("Quality controls", "Experimental samples")) +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_vline(xintercept = 0, linetype = "dashed")
 
-library(pca3d)
-pca2d(as.matrix(scores[, 1:10]), group = scores$WEEKS)
-box(which = "plot", lty = "solid")
+# Data prep for multivariate models
+unscale <- rawints %>% filter(!is.na(bc.meta$THAW_DATE)) %>% remove_constant() %>% as.matrix
+concs <- scaling(unscale, type = "pareto")
 
-# Output Pareto-scaled intensities and corresponding metadata for multivariate analysis
-dat <- prep.data(rawints, bc.meta, get.pca = F)
-
-concs <- dat[[1]]
-meta <- dat[[2]] %>%
+# DIAGSAMPLINGCat1, 1: <5y, 2: >5y. DIAGSAMPLINGCat4, same for 2y
+meta <- bc.meta %>% filter(!is.na(THAW_DATE)) %>%
   select(CT, MATCH, WEEKS, PLACE, AGE, BMI, MENOPAUSE, FASTING, SMK, DIABETE, CENTTIMECat1, CENTTIME, SAMPYEAR, 
-         DIAGSAMPLINGCat1, DIAGSAMPLINGCat4, STOCKTIME, DURTHSBMB) %>%
-  mutate_at(vars(-AGE, -BMI, -CENTTIME, -DIAGSAMPLINGCat1, -DURTHSBMB), as.factor) %>%
-  mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0))
+         DIAGSAMPLING, DIAGSAMPLINGCat1, DIAGSAMPLINGCat4, STOCKTIME, DURTHSBMB) %>%
+  mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0), AGEdiag = AGE + DIAGSAMPLING) %>%
+  mutate_at(vars(-AGE, -BMI, -CENTTIME, -DIAGSAMPLING, -DIAGSAMPLINGCat1, -DURTHSBMB, 
+                 -DIAGSAMPLINGCat4, -AGEdiag), as.factor)
+
 
 #----
 
@@ -106,26 +74,25 @@ pca2d(scores.adj, group = scores$MENOPAUSE)
 # Final data matrix is adjmat, n = 1572
 
 # Multivariate analysis. Subsets to be made:
-# 1. All samples; 2. Pre-menopausal only; 3. Post-menopausal only; 4. Diagnosed < 5 years only; 
-# 5. Diagnosed > 5 years only; 6. Pre-menopausal or no HT; 7. Post-menopausal and HT.
-#adjmat <- readRDS("adjusted_NMR_features.rds")
+# 1. All samples; 2. Post-menopausal; 3. Pre-menopausal only
+# 4. >55 years at diagnosis; 5. <55 years at diagnosis (AGEdiag)
+# 6. <2 year follow-up; 7. >5 year follow-up (tdiag)
 #adjmat <- readRDS("adjusted_NMR_features_no_age.rds")
 
-# First give each control the time to diagnosis time of the corresponding case
-meta <- meta %>% group_by(MATCH) %>% mutate(tdiag = max(as.numeric(DIAGSAMPLINGCat1), na.rm = T)) %>%
-  mutate(tdiag1 = max(as.numeric(DIAGSAMPLINGCat4), na.rm = T)) %>%
-  filter(!is.na(CENTTIME))
+# Give controls the time to diagnosis category and age at diagnosis of the corresponding case 
+meta <- meta %>% group_by(MATCH) %>% 
+  fill(c(DIAGSAMPLINGCat1, DIAGSAMPLINGCat4, AGEdiag), .direction = "downup") %>% filter(!is.na(CENTTIME))
 
 all <- data.frame(class = as.factor(meta$CT), adjmat)
 
 # Logical vectors (need to group for diagnosed > and < 5 years)
-pre   <- meta$MENOPAUSE == 0
-post  <- meta$MENOPAUSE == 1 
-early <- meta$tdiag == 1
-late  <- meta$tdiag == 2
-agehi <- meta$AGE < 55
-agelo <- meta$AGE >= 55
-early2 <- meta$tdiag1 == 1
+post <- meta$MENOPAUSE == 1 
+pre  <- meta$MENOPAUSE == 0
+diagover55 <- meta$AGEdiag >= 55
+diagunder55 <- meta$AGEdiag < 55
+followup2 <- meta$DIAGSAMPLINGCat4 == 1
+followup5 <- meta$DIAGSAMPLINGCat1 == 2
+
 
 library(caret)
 library(pROC)
@@ -163,13 +130,15 @@ bc.roc <- function(dat, get.roc = T, ...) {
 p0 <- bc.roc(all, k = 10)
 p1 <- bc.roc(all[post, ], k = 10)
 p2 <- bc.roc(all[pre, ], k = 5, times = 5)
-p3 <- bc.roc(all[agehi, ], k = 10)
-p4 <- bc.roc(all[agelo, ], k = 10)
-p5 <- bc.roc(all[year5, ], k = 10)
-p6 <- bc.roc(all[year2, ], k = 5, times = 5)
+p3 <- bc.roc(all[diagover55, ], k = 10)
+p4 <- bc.roc(all[diagunder55, ], k = 5, times = 5)
+p5 <- bc.roc(all[followup2, ], k = 5, times = 5)
+p6 <- bc.roc(all[followup5, ], k = 10)
 
-apply(list(p1, p2, p3, p4, p5, p6), )
-list(p1, p2, p3, p4, p5, p6) %>% map(1)
+ll <- list(p1, p2, p3, p4, p5, p6)
+sapply(ll, "[[", 9)
+map_df(ll, ~ pluck(., 9))
+
 pluck(p1, 9)
 
 a0 <- bc.roc(all, k = 10, get.roc = F)
@@ -190,7 +159,6 @@ plot.roc(p3, grid = T, print.auc = T)
 plot.roc(p4, grid = T, print.auc = T)
 plot.roc(p5, grid = T, print.auc = T)
 plot.roc(p6, grid = T, print.auc = T)
-plot.roc(p7, grid = T, print.auc = T)
 
 #save.image("ROC_workspace.RData")
 
@@ -221,12 +189,14 @@ text()
 text(hh[1], 9, "Study group", pos = 4, cex = 1)
 text(hh[2], 9, "AUC [95% CI]", pos = 2, cex = 1)
 
+
+
 # Description of files
 
 # 1694 obs. of 8501 NMR variables (outliers removed, one NA variable in 8501st col)
 #raw <- read_tsv("1510_XAlignedE3NcpmgssCitPEGfinal.txt") %>% select(-8501)
 
-# 1739 obs. of 8500 NMR variables (all samples)
+# 1739 obs. of 8500 NMR variables (all samples, QCs, blanks)
 #raw1 <- read_delim("X_AlignedE3NData_cpmg_ssCitPEG_1112.txt", delim = ";")
 
 # Metadata are stored in the following Excel file. The third sheet has the metadata w/o outliers
