@@ -12,8 +12,10 @@ t1 <- map_df(fits0, tidy) %>% filter(str_detect(term, "x")) %>%
 # Create base plot to cut down code
 base <- ggplot(t1, aes(exp(estimate), log10(p.value))) + geom_point() + theme_bw() +
   xlab("Odds ratio per SD increase concentration") + ylab("P-value") +
-  geom_vline(xintercept = 1, size = 0.2) + geom_hline(yintercept = log10(0.05), size = 0.2) +
-  theme(panel.grid.minor = element_blank(), panel.grid.major = element_blank())
+  geom_vline(xintercept = 1, size = 0.2, colour = "grey60") + 
+  geom_hline(yintercept = log10(0.05), size = 0.2, colour = "grey60") +
+  theme(panel.grid.minor = element_blank()) #, 
+        #panel.grid.major = element_blank())
 
 p1 <- 
   base %+% xlim(0.8, 1.2) +
