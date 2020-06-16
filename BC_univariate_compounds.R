@@ -1,152 +1,26 @@
 # BC risk models for metabolites and also for lifestyle variables alone
 # Also heatmap of differences
 source("BC_prep_data.R")
+library(broom)
 
 # CLR models to get odds ratios for metabolites: all, pre-menopausal only and post-menopausal only
-
-# All subjects -------------------
-
-fits0 <- apply(ints, 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
+# All subjects
+fits1 <- apply(ints, 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + DURTHSBMB + 
          DURTHSBMB + CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta))
 
-# Analysis by quartiles of metabolite concentration (resist outliers). 
-quartiles <- ints0 %>% mutate_all(funs(cut_number(., n = 4, labels = 1:4))) 
+# Pre-menopausal. Need to remove hormone treatment therapy variable
+fits2 <- apply(ints[pre, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + #DURTHSBMB + 
+                     CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[pre, ]))
 
-# Apply across all compounds
-fits0a <- apply(quartiles, 2, function(x) {
-  Q1Q4 <- x == 1 | x == 4
-  clogit(CT ~ x[Q1Q4] + BMI + SMK + DIABETE + RTH + ALCOHOL + DURTHSBMB + CENTTIME + #RACK +
-           STOCKTIME + strata(MATCH), data = meta[Q1Q4, ])
-} )
+# Pre-menopausal + adjusting for ethanol
+meta.eth <- cbind(meta[pre, ], ETH = ints[pre, 14])
+fits3 <- apply(ints[pre, -14], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + ETH +
+                     CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta.eth))
 
-# Tidy and plot
-library(broom)
-t1 <- map_df(fits0, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta) %>% arrange(description)
+# Post-menopausal
+fits4 <- apply(ints[post, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + DURTHSBMB + 
+                     CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[post, ]))
 
-par(mfrow = c(1,2))
-par(mar=c(5,4,1,2))
-library(metafor)
-forest(t1$estimate, ci.lb = t1$conf.low, ci.ub = t1$conf.high, refline = 1,
-       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio per SD increase in conc", 
-       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
-       annosym = c("  (", " to ", ")"), slab = t1$display_name)
-
-hh <- par("usr")
-text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
-text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
-
-t2 <- map_df(fits0a, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta) %>% arrange(description)
-
-par(mar=c(5,4,1,2))
-forest(t2$estimate, ci.lb = t2$conf.low, ci.ub = t2$conf.high, refline = 1,
-       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio Q4 vs Q1", 
-       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
-       annosym = c("  (", " to ", ")"), slab = t2$display_name)
-
-hh <- par("usr")
-text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
-text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
-
-
-# Pre-menopausal -------------------
-
-quartiles <- ints0[pre, ] %>% mutate_all(funs(cut_number(., n = 4, labels = 1:4))) 
-meta1 <- meta[pre, ]
-eth <- ints[pre, 14]
-meta.eth <- cbind(meta1, ETH = eth)
-
-# Note: need to remove hormone treatment therapy variable
-fits1 <- apply(ints[pre, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
-         #DURTHSBMB + 
-           CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[pre, ]))
-
-# Adjusting additionally for ethanol
-fits1e <- apply(ints[pre, -14], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + ETH +
-           CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta.eth))
-
-fits1a <- apply(quartiles, 2, function(x) {
-  Q1Q4 <- x == 1 | x == 4
-  clogit(CT ~ x[Q1Q4] + BMI + SMK + DIABETE + RTH + ALCOHOL + #DURTHSBMB + 
-           CENTTIME + STOCKTIME + strata(MATCH), data = meta1[Q1Q4, ])
-} )
-
-library(broom)
-t1 <- map_df(fits1, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta) %>% arrange(description)
-t1 <- map_df(fits1e, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta[-14, ]) %>% arrange(description)
-
-par(mfrow = c(1,2))
-par(mar=c(5,4,1,2))
-library(metafor)
-forest(t1$estimate, ci.lb = t1$conf.low, ci.ub = t1$conf.high, refline = 1,
-       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio per SD increase in conc", 
-       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
-       annosym = c("  (", " to ", ")"), slab = t1$display_name)
-
-hh <- par("usr")
-text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
-text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
-
-t2 <- map_df(fits1a, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta) %>% arrange(description)
-
-par(mar=c(5,4,1,2))
-forest(t2$estimate, ci.lb = t2$conf.low, ci.ub = t2$conf.high, refline = 1,
-       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio Q4 vs Q1", 
-       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
-       annosym = c("  (", " to ", ")"), slab = t2$display_name)
-
-hh <- par("usr")
-text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
-text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
-
-
-
-# Post-menopausal --------------------
-
-quartiles <- ints0[post, ] %>% mutate_all(funs(cut_number(., n = 4, labels = 1:4))) 
-meta2 <- meta[post, ]
-
-fits2 <- apply(ints[post, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
-          DURTHSBMB + CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta2))
-
-fits2a <- apply(quartiles, 2, function(x) {
-  Q1Q4 <- x == 1 | x == 4
-  clogit(CT ~  x[Q1Q4] + BMI + SMK + DIABETE + RTH + ALCOHOL + DURTHSBMB + CENTTIME + 
-           STOCKTIME + strata(MATCH), data = meta2[Q1Q4, ])
-} )
-
-library(broom)
-t1 <- map_df(fits2, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta) %>% arrange(description)
-
-par(mfrow = c(1,2))
-par(mar=c(5,4,1,2))
-library(metafor)
-forest(t1$estimate, ci.lb = t1$conf.low, ci.ub = t1$conf.high, refline = 1,
-       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio per SD increase in conc", 
-       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
-       annosym = c("  (", " to ", ")"), slab = t1$display_name)
-
-hh <- par("usr")
-text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
-text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
-
-t2 <- map_df(fits2a, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta) %>% arrange(description)
-
-par(mar=c(5,4,1,2))
-forest(t2$estimate, ci.lb = t2$conf.low, ci.ub = t2$conf.high, refline = 1,
-       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio Q4 vs Q1", 
-       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
-       annosym = c("  (", " to ", ")"), slab = t2$display_name)
-
-hh <- par("usr")
-text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
-text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
-
-
-# Funnel plots for metabolites
-funnel(x = t2$estimate, sei = t2$std.error)
-funnel(x = t2$estimate, sei = t2$std.error, yaxis = "vi")
-
-# ---------------------------------------------------------------
 
 # Tables for manuscript
 # Generate tidy output table from models
@@ -154,35 +28,115 @@ tidy.output <- function(mod) {
   
   library(broom) 
   # Function to exponentiate and round
-  round.exp <- function(x) round(exp(x), 2)
-  df <- map_df(mod, tidy) %>% filter(term == "x") %>%
-    mutate_at(.vars = c(OR = "estimate", "conf.low", "conf.high"), .funs = round.exp) %>%
-    cbind(Compound = names(mod)) %>%
-    left_join(cmpd.meta, by  = "Compound")
   
-  # Make columns
-  df$P.value    <- round(df$p.value, 3)
-  df$FDR        <- round(p.adjust(df$p.value, method = "fdr"), 3)
-  df$CI.95      <- paste("(", df$conf.low, ", ", df$conf.high, ")", sep = "")
-
+  df <- map_df(mod, tidy) %>% filter(term == "x") %>% cbind(Compound = names(mod)) %>%
+    left_join(cmpd.meta, by  = "Compound") %>%
+    mutate(P.value = round(p.value, 3), FDR = round(p.adjust(p.value, method = "fdr"), 3))
+  
+  # Calculate FDR adjusted confidence intervals  
+  fdr.hits <- sum(p.adjust(df$p.value, method = "fdr") < 0.05)
+  alpha.raw <- 0.05
+  alpha.fdr <- (fdr.hits * 0.05)/nrow(df)
+  
+  df$OR <- exp(df$estimate)
+  df$ci.low <- exp( df$estimate - (df$std.error * qnorm(1 - (alpha.raw/2))) )
+  df$ci.high <- exp( df$estimate + (df$std.error * qnorm(1 - (alpha.raw/2))) )
+  
+  if(fdr.hits > 0) {
+    df$ci.low.fdr <- exp( df$estimate - (df$std.error * qnorm(1 - (alpha.fdr/2))) )
+    df$ci.high.fdr <- exp( df$estimate + (df$std.error * qnorm(1 - (alpha.fdr/2))) )
+  } else {
+    df$ci.low.fdr <- df$ci.low
+    df$ci.high.fdr <- df$ci.high
+  }
+  
+  df <- df %>% mutate_at(c("OR", "ci.low", "ci.high", "ci.low.fdr", "ci.high.fdr"), ~round(., 2))
+  
+  # Paste CIs together
+  df$ci95  <- paste("(", df$ci.low, ", ", df$ci.high, ")", sep = "")
+  df$ciFDR <- paste("(", df$ci.low.fdr, ", ", df$ci.high.fdr, ")", sep = "")
+  
   # Select columns and order
-  output <- df %>% select(Compound = "display_name", "description", "OR", "CI.95", "P.value", "FDR") %>%
-    arrange(description)
+  output <- df %>% select(Compound = "display_name", "description", "OR",
+                          "ci95", "ciFDR", "P.value", "FDR") %>% arrange(description)
   
 }
 
-all <- tidy.output(fits0)
-pre <- tidy.output(fits1)
-post <- tidy.output(fits2)
-pre.eth <- tidy.output(fits1e)
+all <- tidy.output(fits1)
+pre <- tidy.output(fits2)
+pre1 <- tidy.output(fits3)
+post <- tidy.output(fits4)
 
 # Retain only metabolite groups with at least one p-value < 0.05
-tab <- bind_rows("All" = all, "Post" = post, "Pre" = pre, "Pre.eth" = pre.eth, .id = "Group") %>%
+tab <- bind_rows("All" = all, "Post" = post, "Pre" = pre, "Pre.eth" = pre1, .id = "Group") %>%
   arrange(Group, -OR) %>% 
   group_by(Compound) %>%
   filter(min(FDR) < 0.05) %>%
   select(Compound, description, everything()) 
+
 # Copy and paste this into manuscript via Excel
+
+
+
+
+
+
+
+
+# Old: forest plots (not used in manuscript)
+t1 <- map_df(fits1, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta) %>% arrange(description)
+t2 <- map_df(fits2, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta) %>% arrange(description)
+t3 <- map_df(fits3, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta[-14, ]) %>% arrange(description)
+t4 <- map_df(fits4, tidy) %>% filter(str_detect(term, "x")) %>% bind_cols(cmpd.meta) %>% arrange(description)
+
+par(mfrow = c(1,2))
+par(mar=c(5,4,1,2))
+library(metafor)
+forest(t1$estimate, ci.lb = t1$conf.low, ci.ub = t1$conf.high, refline = 1,
+       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio per SD increase in conc", 
+       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
+       annosym = c("  (", " to ", ")"), slab = t1$display_name)
+
+hh <- par("usr")
+text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
+text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
+
+par(mar=c(5,4,1,2))
+forest(t2$estimate, ci.lb = t2$conf.low, ci.ub = t2$conf.high, refline = 1,
+       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio Q4 vs Q1", 
+       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
+       annosym = c("  (", " to ", ")"), slab = t2$display_name)
+
+hh <- par("usr")
+text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
+text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
+
+par(mfrow = c(1,2))
+par(mar=c(5,4,1,2))
+library(metafor)
+forest(t3$estimate, ci.lb = t1$conf.low, ci.ub = t1$conf.high, refline = 1,
+       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio per SD increase in conc", 
+       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
+       annosym = c("  (", " to ", ")"), slab = t1$display_name)
+
+hh <- par("usr")
+text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
+text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
+
+par(mar=c(5,4,1,2))
+forest(t4$estimate, ci.lb = t2$conf.low, ci.ub = t2$conf.high, refline = 1,
+       ylim = c(1, max(rowvec) + 3), xlab = "Odds ratio Q4 vs Q1", 
+       transf = exp, rows = rowvec, efac = 0.5, pch = 18, cex = 0.8, psize = 1.5, 
+       annosym = c("  (", " to ", ")"), slab = t2$display_name)
+
+hh <- par("usr")
+text(hh[1], max(rowvec) + 2, "Metabolite", pos = 4, cex = 0.8)
+text(hh[2], max(rowvec) + 2, "OR [95% CI]", pos = 2, cex = 0.8)
+
+# Funnel plots for metabolites
+funnel(x = t2$estimate, sei = t2$std.error)
+funnel(x = t2$estimate, sei = t2$std.error, yaxis = "vi")
+
 
 
 # Output with stargazer (abandoned, easier to go through Excel)
