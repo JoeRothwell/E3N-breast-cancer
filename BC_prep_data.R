@@ -6,12 +6,14 @@ library(readxl)
 library(survival)
 
 # First get metadata. Add follow up time and subset variables needed
-meta <- read_csv("Lifepath_meta.csv", na = "9999") %>%
-  group_by(MATCH) %>% mutate(Tfollowup = max(DIAGSAMPLING, na.rm = T)) %>% ungroup %>%
+meta <- read_csv("metadata.csv", na = "9999") %>%
+  group_by(MATCH) %>% 
+  mutate(Tfollowup = max(DIAGSAMPLING, na.rm = T)) %>%
+  fill(DIAGSAMPLING, .direction = "downup") %>% ungroup %>%
   select(CT, BMI, SMK, DIABETE, RTH, DURTHSBMB, CENTTIME, STOCKTIME, MATCH, ALCOHOL, MENOPAUSE,
-         DIAGSAMPLING, Tfollowup, AGE) %>%
+         DIAGSAMPLING, Life_Alcohol_Pattern_2, AGE) %>%
   mutate_at(vars(SMK, DIABETE), as.factor) %>%
-  mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0), Age1 = ifelse(AGE > 55, 1, 0))
+  mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0), AGEdiag = AGE + DIAGSAMPLING)
 
 # For removal of problem racks for Ethanol
 #meta1 <- meta %>% filter(!RACK %in% c(10, 29, 33, 34))
@@ -26,9 +28,13 @@ meta <- meta[log.vec, ]
 # For subsetting
 pre <- meta$MENOPAUSE == 0
 post <- meta$MENOPAUSE == 1 
-pre0 <- meta$MENOPAUSE == 0 & meta$Tfollowup > 2
-agehi <- meta$Age1 == 1
-agelo <- meta$Age1 == 0
+#agehi <- meta$Age1 == 1
+#agelo <- meta$Age1 == 0
+
+# For sensitivity analyses: less than 55 at diagnosis
+preS2 <- meta$MENOPAUSE == 0 & meta$AGEdiag < 55
+pre0 <- meta$MENOPAUSE == 0 & meta$DIAGSAMPLING > 2
+
 
 # Compound data for forest plots
 cmpd.meta <- read.csv("NMR_cmpd_metadata_new.csv")
