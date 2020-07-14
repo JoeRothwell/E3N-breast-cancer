@@ -7,7 +7,59 @@ library(gplots)
 # Read unscaled data and metadata (each 1882 obs)
 ints0 <- read_tsv("1510_XMetaboliteE3N_cpmg_unscaled.txt")
 ints <- scale(ints0)
-meta <- read.csv("Lifepath_meta.csv")
+meta <- read.csv("metadata.csv", na = "9999")
+
+# Follow-up time plot for paper
+meta$menopause <- ifelse(meta$MENOPAUSE == 1, "Post-menopausal", "Pre-menopausal")
+
+library(ggplot2)
+ggplot(meta, aes(x = DIAGSAMPLING)) + 
+  geom_histogram(colour = "black", fill = "grey80")+ theme_minimal() + 
+  scale_fill_manual(values = c("white", "grey80")) + 
+  xlab("Time from blood collection to diagnosis (years)") + ylab("No. cases") +
+  theme(legend.position = c(0.8, 0.8)) +
+  facet_grid(.~menopause, scales = "free_y") +
+  ggtitle("A")
+
+
+# Correlation heatmap for paper
+library(corrplot)
+colnames(ints)[1] <- "3-Hydroxybutyrate"
+colnames(ints)[41] <- "N-acetyl glycoproteins"
+cormat <- cor(ints, use = "pairwise.complete.obs")
+
+library(ggcorrplot)
+cordf <- as_tibble(cormat)
+ggcorrplot(cordf, hc.order = T, hc.method = "ward", legend.title = "Scale") + theme_minimal() +
+  ggtitle("B") +
+  theme(axis.title = element_blank(),
+        axis.text.x = element_blank())
+
+colnames(cormat) <- rep("", 43)
+#rownames(cormat) <- NULL
+corrplot(cormat, method = "square", tl.col = "black", tl.cex = 0.7,  tl.srt = 30,
+         hclust.method = "ward", order = "hclust", type = "full")
+
+# Or with ggcorrplot
+library(ggcorrplot)
+cordf <- as_tibble(cormat)
+ggcorrplot(cordf, hc.order = T, hc.method = "ward", legend.title = "Scale") + theme_minimal() +
+  ggtitle("B") +
+  theme(axis.title = element_blank(),
+        axis.text.x = element_blank())
+
+library(corrr)
+rplot(cormat, shape = 15)
+
+# Dendrogram
+library(dendextend)
+dend <- hclust(dist(cormat)) %>% as.dendrogram
+par(mar=c(1,1,1,8))
+dend %>% 
+  set("labels_col", value = c("skyblue", "orange", "grey"), k = 3) %>%
+  set("branches_k_color", value = c("skyblue", "orange", "grey"), k = 3) %>%
+  plot(horiz = T, axes = F)
+
 
 # Read scaled data and subset samples from meta
 ints.all <- read.delim("1507_XMetabolite_std_cpmg_E3N.txt")
@@ -63,26 +115,6 @@ ggplot(ints, aes(x= as.factor(meta$CT), y=log(Hypoxanthine))) +
   geom_line(aes(group = meta$MATCH), alpha = 0.5) + 
   geom_point(aes(group = meta$MATCH), alpha = 0.5) + 
   theme_minimal() + facet_grid( ~ meta$MENOPAUSE)
-
-# Check correlations: fatty acids are highly correlated
-library(corrplot)
-colnames(ints)[41] <- "N-acetyl glycoprotein"
-cormat <- cor(ints, use = "pairwise.complete.obs")
-#cormat <- cor(ints[, -1])
-colnames(cormat) <- rep("", 43)
-#rownames(cormat) <- NULL
-corrplot(cormat, method = "square", tl.col = "black", tl.cex = 0.7,  tl.srt = 30,
-                 hclust.method = "ward", order = "hclust", #tl.pos = "td", 
-         type = "full")
-
-# Dendrogram
-library(dendextend)
-dend <- hclust(dist(cormat)) %>% as.dendrogram
-par(mar=c(1,1,1,8))
-dend %>% 
-  set("labels_col", value = c("skyblue", "orange", "grey"), k = 3) %>%
-  set("branches_k_color", value = c("skyblue", "orange", "grey"), k = 3) %>%
-  plot(horiz = T, axes = F)
 
 
 # Run PCA of all samples
@@ -175,6 +207,40 @@ lapply(ll, function(x,y) { pca2d(x)
 # Conclusion: the old dataset seems to be a unit variance scaled version of the new dataset
 # (although they are not exactly the same; the new datasets has merged NAC1 and NAC2)
 # Decision: use unscaled dataset and apply unit scaling, discard old scaled dataset
+
+# Moved from BC_dendrograms.R
+
+library(corrplot)
+cormat <- cor(ints1)
+colnames(cormat) <- NULL
+corrplot(cormat, method = "square", tl.col = "black", tl.cex = 0.8)
+
+dend1 <- cormat %>% dist %>% hclust %>% as.dendrogram
+
+plot(dend0)
+plot(dend1)
+
+library(dendextend)
+dend1 %>% set("labels_col", "blue") %>% hang.dendrogram() %>% 
+  plot(main = "Change label's color")
+
+dend1 %>% set("labels_cex", 1) %>% set("labels_col", value = c(3,4), k=2) %>% 
+  plot(main = "Color labels \nper cluster")
+
+dend1 %>% set("branches_k_color", k = 3) %>% plot(main = "Nice defaults")
+
+library(circlize)
+
+
+rownames(cormat) <- abbreviate(rownames(cormat), named = F)
+dend <- cormat %>% dist %>% hclust %>% as.dendrogram %>%
+  set("branches_k_color", k=3) %>% set("labels_cex", c(1)) #%>%
+#hang.dendrogram(hang_height = 0.3)
+
+circos.par(gap.after = 0) #gap.degree for gaps between sectors
+
+circlize_dendrogram(dend, dend_track_height = 0.85)
+
 
 # Old ------------------------------
 

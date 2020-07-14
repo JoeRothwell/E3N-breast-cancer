@@ -1,32 +1,38 @@
 # Breast cancer study multivariate models from unbinned NMR raw data, data from Elodie Jobard 27-6-2019
 # Read in data with outliers and QCs (n=1739) or with QCs only
+# For multivariate analysis, skip straight to adjmat (line 80) or ROC workspace (line 150)
 library(tidyverse)
 library(readxl)
 library(janitor)
 library(MetabolAnalyze)
 rawints <- read_tsv("1510_XAlignedE3NcpmgssCitPEGfinal.txt") %>% select(-8501)
-bc.meta <- read_xlsx("1510_MatriceY_CohorteE3N_Appar.xlsx", sheet = 4, na = ".")
+
+# Metadata with 112 QCs
+metaQC <- read_xlsx("1510_MatriceY_CohorteE3N_Appar.xlsx", sheet = 4, na = ".")
 
 # PCA scores plots (THAW_DATE removes QCs/blanks)
 dat1 <- rawints %>% remove_constant() %>% as.matrix
-pca <- prcomp(scaling(dat1, type = "pareto"), scale. = F)
-pca2d(pca, group = bc.meta$WEEKS)
+pca <- prcomp(scaling(dat1, type = "pareto"), scale. = F, rank. = 10)
+pca2d(pca, group = metaQC$WEEKS)
 box(which = "plot", lty = "solid")
 
 library(ggplot2)
-ggplot(data.frame(pca$x), aes(PC1, PC2, colour = as.factor(bc.meta$TYPE_ECH))) + geom_point() + theme_bw() +
-  xlab("Score on PC1") + ylab("Score on PC2") +
+ggplot(data.frame(pca$x), aes(PC1, PC2, colour = as.factor(metaQC$TYPE_ECH), 
+                              shape = as.factor(metaQC$TYPE_ECH))) + 
+  geom_point() + theme_bw() +
+  xlab("Score on PC1 (37.6% variance explained)") + ylab("Score on PC2 (25.7% variance explained)") +
   scale_color_discrete(labels = c("Quality controls", "Experimental samples")) +
-  theme(legend.position = "bottom", legend.title = element_blank()) +
+  scale_shape_discrete(labels = c("Quality controls", "Experimental samples")) +
+  theme(legend.position = c(0.83,0.1), legend.title = element_blank()) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_vline(xintercept = 0, linetype = "dashed")
 
 # Data prep for multivariate models
-unscale <- rawints %>% filter(!is.na(bc.meta$THAW_DATE)) %>% remove_constant() %>% as.matrix
+unscale <- rawints %>% filter(!is.na(metaQC$THAW_DATE)) %>% remove_constant() %>% as.matrix
 concs <- scaling(unscale, type = "pareto")
 
 # DIAGSAMPLINGCat1, 1: <5y, 2: >5y. DIAGSAMPLINGCat4, same for 2y
-meta <- bc.meta %>% filter(!is.na(THAW_DATE)) %>%
+meta <- metaQC %>% filter(!is.na(THAW_DATE)) %>%
   select(CT, MATCH, WEEKS, PLACE, AGE, BMI, MENOPAUSE, FASTING, SMK, DIABETE, CENTTIMECat1, CENTTIME, SAMPYEAR, 
          DIAGSAMPLING, DIAGSAMPLINGCat1, DIAGSAMPLINGCat4, STOCKTIME, DURTHSBMB) %>%
   mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0), AGEdiag = AGE + DIAGSAMPLING) %>%
@@ -49,8 +55,8 @@ plot(props.raw)
 
 # Adjust for fixed effects only. Random effects model with lme4 did not work, boundary fit or didn't converge
 # Note: NAs in CENTTIME, so adjusted matrix loses these 10 observations
-adj <- function(x) residuals(lm(x ~ PLACE + WEEKS + DIABETE + FASTING + CENTTIMECat1 + 
-                                  STOCKTIME, data = meta))
+adj <- function(x) residuals(lm(x ~ PLACE + WEEKS + #DIABETE + 
+                                  FASTING + CENTTIMECat1 + STOCKTIME, data = meta))
 adjmat <- apply(concs, 2, adj)
 # Final data matrix used for models below
 #saveRDS(adjmat, "adjusted_NMR_features.rds")
@@ -77,7 +83,7 @@ pca2d(scores.adj, group = scores$MENOPAUSE)
 # 1. All samples; 2. Post-menopausal; 3. Pre-menopausal only
 # 4. >55 years at diagnosis; 5. <55 years at diagnosis (AGEdiag)
 # 6. <2 year follow-up; 7. >5 year follow-up (tdiag)
-#adjmat <- readRDS("adjusted_NMR_features_no_age.rds")
+adjmat <- readRDS("adjusted_NMR_features_no_age.rds")
 
 # Give controls the time to diagnosis category and age at diagnosis of the corresponding case 
 meta <- meta %>% group_by(MATCH) %>% 
@@ -93,6 +99,14 @@ diagunder55 <- meta$AGEdiag < 55
 followup2 <- meta$DIAGSAMPLINGCat4 == 1
 followup5 <- meta$DIAGSAMPLINGCat1 == 2
 
+# Get median follow up times
+median(meta$DIAGSAMPLING, na.rm = T)
+median(meta$DIAGSAMPLING[post], na.rm = T)
+median(meta$DIAGSAMPLING[pre], na.rm = T)
+median(meta$DIAGSAMPLING[diagover55], na.rm = T)
+median(meta$DIAGSAMPLING[diagunder55], na.rm = T)
+median(meta$DIAGSAMPLING[followup2], na.rm = T)
+median(meta$DIAGSAMPLING[followup5], na.rm = T)
 
 library(caret)
 library(pROC)
@@ -114,8 +128,8 @@ bc.roc <- function(dat, get.roc = T, ...) {
   mod0 <- train(class ~ ., data = training, method = "pls", metric = "Accuracy", 
                 trControl = control, tuneLength = 20) 
   
-  #plot(mod0)
-  confusionMatrix(mod0)
+  plot(mod0)
+  print(confusionMatrix(mod0))
   
   # Predict test set
   predictions0 <- predict(mod0, newdata = testing)
@@ -135,12 +149,12 @@ p4 <- bc.roc(all[diagunder55, ], k = 5, times = 5)
 p5 <- bc.roc(all[followup2, ], k = 5, times = 5)
 p6 <- bc.roc(all[followup5, ], k = 10)
 
-ll <- list(p1, p2, p3, p4, p5, p6)
-sapply(ll, "[[", 9)
-map_df(ll, ~ pluck(., 9))
+# List ROC objects and extract AUCs to a data frame
+ll <- list(p0, p1, p2, p3, p4, p5, p6)
+aucs <- sapply(ll, "[", 16)
+auc.df <- do.call(rbind, auc.ci)
 
-pluck(p1, 9)
-
+# Get accuracy only (no ROC)
 a0 <- bc.roc(all, k = 10, get.roc = F)
 a1 <- bc.roc(all[post, ], k = 10, get.roc = F)
 a2 <- bc.roc(all[pre, ], k = 5, times = 5, get.roc = F)

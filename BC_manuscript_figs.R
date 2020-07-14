@@ -3,6 +3,8 @@ library(broom)
 library(ggrepel)
 source("BC_prep_data.R")
 
+# Univariate models and smile plots for manuscript
+
 fits0 <- apply(ints, 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
   DURTHSBMB + CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta))
 
