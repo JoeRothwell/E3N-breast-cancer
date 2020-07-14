@@ -12,18 +12,18 @@ t1 <- map_df(fits0, tidy) %>% filter(str_detect(term, "x")) %>%
   mutate(p.valueFDR = p.adjust(p.value, method = "fdr")) %>% bind_cols(cmpd.meta)
 
 # Create base plot to cut down code
-base <- ggplot(t1, aes(exp(estimate), log10(p.value))) + geom_point() + theme_bw() +
-  xlab("Odds ratio per SD increase concentration") + ylab("P-value") +
+base <- ggplot(t1, aes(exp(estimate), log10(p.value))) + geom_point() + theme_bw(base_size = 10) +
+  xlab("Odds ratio per SD increase concentration") + ylab(expression(italic(P)~ "value")) +
   geom_vline(xintercept = 1, size = 0.2, colour = "grey60") + 
   geom_hline(yintercept = log10(0.05), size = 0.2, colour = "grey60") +
-  theme(panel.grid.minor = element_blank()) #, 
-        #panel.grid.major = element_blank())
+  theme(panel.grid.minor = element_blank() , 
+        panel.grid.major = element_blank())
 
 p1 <- 
   base %+% xlim(0.8, 1.2) +
   scale_y_reverse(limits = c(0, -2.5), breaks = c(0:-2), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t1[t1$p.value < 0.15, ]) + 
-  ggtitle("All subjects")
+  labs(title = "A", subtitle = "All subjects")
 
 # Pre-menopausal
 meta1 <- meta[pre, ]
@@ -39,7 +39,7 @@ p2 <-
   scale_y_reverse(limits = c(0, -3.9), breaks = c(0:-3), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t2[t2$p.value < 0.04, ] ) +
   geom_hline(yintercept = log10(0.014), linetype = "dotted") +
-  ggtitle("Pre-menopausal")
+  labs(title = "B", subtitle = "Pre-menopausal")
 
 
 # Post menopausal
@@ -55,7 +55,7 @@ p3 <-
   scale_y_reverse(limits = c(0, -2.5), breaks = c(0:-2), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t3[t3$p.value < 0.12, ]) +
   #geom_hline(yintercept = log10(0.05), linetype = "dashed") +
-  ggtitle("Post-menopausal")
+  labs(title = "C", subtitle = "Post-menopausal")
 
 
 # Sensitivity analysis adjusted ethanol
@@ -75,10 +75,11 @@ p4 <-
   scale_y_reverse(limits = c(0, -3.9), breaks = c(0:-3), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t4[t4$p.value < 0.04, ] ) +
   geom_hline(yintercept = log10(0.001), linetype = "dotted") +
-  ggtitle("Pre-menopausal, adjusted for plasma ethanol")
+  labs(title = "D", subtitle = "Pre-menopausal, adjusted for plasma ethanol")
   
 library(cowplot)
-plot_grid(p1, p3, p2, p4, labels = c('A', 'B', 'C', 'D'), label_size = 12)  
+plot_grid(p1, p3, p2, p4, #labels = c('A', 'B', 'C', 'D'), 
+          label_size = 12)  
 
 
 # Pre-menopausal, exclude first 2 years of follow up
