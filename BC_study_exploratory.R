@@ -13,13 +13,12 @@ meta <- read.csv("metadata.csv", na = "9999")
 meta$menopause <- ifelse(meta$MENOPAUSE == 1, "Post-menopausal", "Pre-menopausal")
 
 library(ggplot2)
-ggplot(meta, aes(x = DIAGSAMPLING)) + 
+plot1 <- ggplot(meta, aes(x = DIAGSAMPLING)) + 
   geom_histogram(colour = "black", fill = "grey80")+ theme_minimal() + 
   scale_fill_manual(values = c("white", "grey80")) + 
   xlab("Time from blood collection to diagnosis (years)") + ylab("No. cases") +
   theme(legend.position = c(0.8, 0.8)) +
-  facet_grid(.~menopause, scales = "free_y") +
-  ggtitle("A")
+  facet_grid(.~menopause, scales = "free_y") + ggtitle("")
 
 
 # Correlation heatmap for paper
@@ -30,23 +29,22 @@ cormat <- cor(ints, use = "pairwise.complete.obs")
 
 library(ggcorrplot)
 cordf <- as_tibble(cormat)
-ggcorrplot(cordf, hc.order = T, hc.method = "ward", legend.title = "Scale") + theme_minimal() +
-  ggtitle("B") +
+plot2 <- ggcorrplot(cordf, hc.order = T, hc.method = "ward", legend.title = "Scale") + theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) + ggtitle("") +
   theme(axis.title = element_blank(),
-        axis.text.x = element_blank())
+        axis.text.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
 
+# Arrange plots
+library(cowplot)
+plot_grid(plot1, plot2, labels = c("A", "B"), nrow = 2, rel_heights = c(1,2), rel_widths = c(1,2))
+
+# Corrplot and corrr
 colnames(cormat) <- rep("", 43)
 #rownames(cormat) <- NULL
 corrplot(cormat, method = "square", tl.col = "black", tl.cex = 0.7,  tl.srt = 30,
          hclust.method = "ward", order = "hclust", type = "full")
-
-# Or with ggcorrplot
-library(ggcorrplot)
-cordf <- as_tibble(cormat)
-ggcorrplot(cordf, hc.order = T, hc.method = "ward", legend.title = "Scale") + theme_minimal() +
-  ggtitle("B") +
-  theme(axis.title = element_blank(),
-        axis.text.x = element_blank())
 
 library(corrr)
 rplot(cormat, shape = 15)
