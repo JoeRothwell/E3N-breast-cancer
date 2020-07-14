@@ -7,7 +7,7 @@ library(janitor)
 library(MetabolAnalyze)
 rawints <- read_tsv("1510_XAlignedE3NcpmgssCitPEGfinal.txt") %>% select(-8501)
 
-# Metadata with 112 QCs
+# Metadata with 112 QCs. Assess multivariate quality
 metaQC <- read_xlsx("1510_MatriceY_CohorteE3N_Appar.xlsx", sheet = 4, na = ".")
 
 # PCA scores plots (THAW_DATE removes QCs/blanks)
@@ -25,11 +25,24 @@ ggplot(data.frame(pca$x), aes(PC1, PC2, colour = as.factor(metaQC$TYPE_ECH),
   scale_shape_discrete(labels = c("Quality controls", "Experimental samples")) +
   theme(legend.position = c(0.83,0.1), legend.title = element_blank()) +
   geom_hline(yintercept = 0, linetype = "dashed") +
-  geom_vline(xintercept = 0, linetype = "dashed")
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  ggtitle("A")
 
 # Data prep for multivariate models
 unscale <- rawints %>% filter(!is.na(metaQC$THAW_DATE)) %>% remove_constant() %>% as.matrix
 concs <- scaling(unscale, type = "pareto")
+
+# Calculation of RSDs for chemical shift regions
+unscaleQC <- rawints %>% filter(is.na(metaQC$THAW_DATE)) %>% remove_constant() %>% as.matrix
+rsd <- apply(unscaleQC, 2, function(x) abs(mean(x))/sd(x))
+hist(rsd, breaks = 30)
+mean(rsd); median(rsd); IQR(rsd); quantile(rsd)
+
+
+ggplot(tibble(rsd), aes(x = rsd)) + geom_histogram(colour = "black", fill = "grey80", binwidth = 2) + 
+  theme_bw() + xlab("Relative Standard Deviation (%)") + ylab("Number of chemical shift regions") +
+  annotate("text", x = 80, y = 1200, label = "Mean RSD = 12.3%") +
+  annotate("text", x = 80, y = 1100, label = "Median RSD = 6.9%, IQR = 1.3-18.7%") + ggtitle("B")
 
 # DIAGSAMPLINGCat1, 1: <5y, 2: >5y. DIAGSAMPLINGCat4, same for 2y
 meta <- metaQC %>% filter(!is.na(THAW_DATE)) %>%
