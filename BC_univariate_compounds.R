@@ -21,6 +21,17 @@ fits3 <- apply(ints[pre, -14], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + 
 fits4 <- apply(ints[post, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + DURTHSBMB + 
                      CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[post, ]))
 
+# Sensitivity analysis for supplement table 5. Adjust Life_Alcohol_Pattern2, exclude cases <55 at diagnosis,
+# exclude cases diagnosed first 2 years of follow up
+fits5 <- apply(ints[pre, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
+                     Life_Alcohol_Pattern_2 + CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[pre, ]))
+
+fits6 <- apply(ints[preS2, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
+                     CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[preS2, ]))
+
+fits7 <- apply(ints[pre0, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
+                    CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[pre0, ]))
+
 
 # Tables for manuscript
 # Generate tidy output table from models
@@ -31,7 +42,7 @@ tidy.output <- function(mod) {
   
   df <- map_df(mod, tidy) %>% filter(term == "x") %>% cbind(Compound = names(mod)) %>%
     left_join(cmpd.meta, by  = "Compound") %>%
-    mutate(P.value = round(p.value, 3), FDR = round(p.adjust(p.value, method = "fdr"), 3))
+    mutate(P.value = round(p.value, 4), FDR = round(p.adjust(p.value, method = "fdr"), 3))
   
   # Calculate FDR adjusted confidence intervals  
   fdr.hits <- sum(p.adjust(df$p.value, method = "fdr") < 0.05)
@@ -53,8 +64,8 @@ tidy.output <- function(mod) {
   df <- df %>% mutate_at(c("OR", "ci.low", "ci.high", "ci.low.fdr", "ci.high.fdr"), ~round(., 2))
   
   # Paste CIs together
-  df$ci95  <- paste("(", df$ci.low, ", ", df$ci.high, ")", sep = "")
-  df$ciFDR <- paste("(", df$ci.low.fdr, ", ", df$ci.high.fdr, ")", sep = "")
+  df$ci95  <- paste("(", df$ci.low, "-", df$ci.high, ")", sep = "")
+  df$ciFDR <- paste("(", df$ci.low.fdr, "-", df$ci.high.fdr, ")", sep = "")
   
   # Select columns and order
   output <- df %>% select(Compound = "display_name", "description", "OR",
@@ -66,6 +77,8 @@ all <- tidy.output(fits1)
 pre <- tidy.output(fits2)
 pre1 <- tidy.output(fits3)
 post <- tidy.output(fits4)
+preS1 <- tidy.output(fits7)
+preS2 <- tidy.output(fits6)
 
 # Retain only metabolite groups with at least one p-value < 0.05
 tab <- bind_rows("All" = all, "Post" = post, "Pre" = pre, "Pre.eth" = pre1, .id = "Group") %>%
