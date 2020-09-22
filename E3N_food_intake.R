@@ -63,7 +63,7 @@ partialcor <- function(x) {
   mod2 <- lm(x ~ BMI + SMK, data = alim[alim$VIN > 0, ])
   
   # Correlate the two sets of residuals              
-  cor.test(residuals(mod1), residuals(mod2), type = "spearman")
+  cor.test(residuals(mod1), residuals(mod2), method = "spearman")
   
 }
   
