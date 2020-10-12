@@ -32,6 +32,9 @@ fits6 <- apply(ints[preS2, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + R
 fits7 <- apply(ints[pre0, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
                     CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[pre0, ]))
 
+fits8 <- apply(ints[pos, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
+                    CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[pos, ]))
+
 
 # Tables for manuscript
 # Generate tidy output table from models
@@ -79,6 +82,7 @@ pre1 <- tidy.output(fits3)
 post <- tidy.output(fits4)
 preS1 <- tidy.output(fits7)
 preS2 <- tidy.output(fits6)
+pos <- tidy.output(fits8)
 
 # Retain only metabolite groups with at least one p-value < 0.05
 tab <- bind_rows("All" = all, "Post" = post, "Pre" = pre, "Pre.eth" = pre1, .id = "Group") %>%

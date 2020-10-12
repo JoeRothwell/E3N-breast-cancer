@@ -17,9 +17,10 @@ library(survival)
 meta <- read_csv("metadata.csv", na = "9999") %>%
   group_by(MATCH) %>% 
   #mutate(Tfollowup = max(DIAGSAMPLING, na.rm = T)) %>%
-  #fill(DIAGSAMPLING, .direction = "downup") %>% ungroup %>%
+  fill(c(DIAGSAMPLING, ER), .direction = "downup") %>% 
+  ungroup %>%
   select(CODBMB, CT, BMI, SMK, DIABETE, RTH, DURTHSBMB, CENTTIME, STOCKTIME, MATCH, ALCOHOL, MENOPAUSE,
-         DIAGSAMPLING, Life_Alcohol_Pattern_2, AGE) %>%
+         DIAGSAMPLING, Life_Alcohol_Pattern_2, AGE, ER) %>%
   mutate_at(vars(SMK, DIABETE), as.factor) %>%
   mutate_at(vars(CODBMB), as.character) %>%
   mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0), AGEdiag = AGE + DIAGSAMPLING) #%>%
@@ -38,6 +39,10 @@ pre <- meta$MENOPAUSE == 0
 post <- meta$MENOPAUSE == 1 
 #agehi <- meta$Age1 == 1
 #agelo <- meta$Age1 == 0
+
+# Oestrogen receptor positive
+pos <- meta$ER == 1
+neg <- meta$ER == 0
 
 # For sensitivity analyses: less than 55 at diagnosis
 preS2 <- meta$MENOPAUSE == 0 & meta$AGEdiag < 55
