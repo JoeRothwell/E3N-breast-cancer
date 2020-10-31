@@ -51,7 +51,18 @@ set2 <- rep(brewer.pal(8, "Set2"), each = 43, length.out=nrow(all))
 #accent <- rep(brewer.pal(8, "Accent") , each = 43, length.out=nrow(all))
 #rain <- rep(rainbow(12), each = 43, length.out = nrow(all))
 
-
+# Plot (add col palette as necessary)
 plot(-log10(all$p.value), col = set2, pch = 19, cex = 0.6)
-#plot(-log10(all$p.value), col = accent, pch = 19, cex = 0.7)
-#plot(-log10(all$p.value), col = rain, pch = 19, cex = 0.7)
+
+# x axis width
+x = 1:nrow(all)
+
+# draw empty plot
+plot(NULL, xlim=c(0, nrow(all)), ylim=c(0, max(-log10(all$p.value))), xaxt='n', 
+     ylab='-log10(p-value)', xlab='')
+points(x, -log10(all$p.value), pch=19, col=set2, cex = 0.6)
+
+# axis labels
+labs <- c("Fasting", "Alcohol", "Life alc.", "Smoke", "BMI", "Age", "BP", 
+          "WC", "HRT", "Diabetes", "Contracep.")
+axis(1, at = c(21, 64, 107, 150, 193, 236, 279, 322, 365, 408, 451), labels = labs, las=3)
