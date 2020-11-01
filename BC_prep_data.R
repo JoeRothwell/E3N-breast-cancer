@@ -3,7 +3,6 @@
 
 library(tidyverse)
 library(readxl)
-library(survival)
 # Get CODBMB/IDENT correspondance
 #idents <- read_xls("E3N_cancer du sein_21072014.xls") %>% select(1:2)
 
@@ -13,26 +12,27 @@ library(survival)
 # Bind together and add IDENT
 #rv <- men %>% bind_cols(rv) %>% left_join(idents, by = "IDENT")
 
-# First get metadata. Subset variables needed, calculate age at diagnosis, add reproductive variables
+# First get metadata. Set control variables to cases, calculate age at diagnosis, add reproductive variables
 meta <- read_csv("metadata.csv", na = "9999") %>%
-  group_by(MATCH) %>% 
-  #mutate(Tfollowup = max(DIAGSAMPLING, na.rm = T)) %>%
   fill(c(DIAGSAMPLING, ER), .direction = "downup") %>% 
-  ungroup %>%
-  select(CODBMB, CT, BMI, SMK, DIABETE, RTH, DURTHSBMB, CENTTIME, STOCKTIME, MATCH, ALCOHOL, MENOPAUSE,
-         DIAGSAMPLING, Life_Alcohol_Pattern_2, AGE, ER) %>%
-  mutate_at(vars(SMK, DIABETE), as.factor) %>%
-  mutate_at(vars(CODBMB), as.character) %>%
-  mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0), AGEdiag = AGE + DIAGSAMPLING) #%>%
+  mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0), AGEdiag = AGE + DIAGSAMPLING) %>%
+  #mutate(CODBMB, as.character) %>%
   #left_join(idents, by = "CODBMB") %>%
-  #left_join(rv, by = "IDENT")
+  #left_join(rv, by = "IDENT") %>%
+  mutate_at(vars(SMK, DIABETE), as.factor)
+  
+meta$DIAGSAMPLINGQ4 <- cut_number(meta$DIAGSAMPLING, 4, labels = F)
 
 # For removal of case-control pairs not matched by menopausal status (univariate)
-unmatch_pairs <- meta %>% group_by(MATCH) %>% summarise(sum.men = sum(MENOPAUSE)) %>% 
+unmatch.pairs <- meta %>% group_by(MATCH) %>% summarise(sum.men = sum(MENOPAUSE)) %>% 
   filter(sum.men == 1) %>% select(MATCH) %>% pull() %>% as.numeric
 
-log.vec <- !(meta$MATCH %in% unmatch_pairs)
+log.vec <- !(meta$MATCH %in% unmatch.pairs)
 meta <- meta[log.vec, ]
+
+#unmatch.pairs1 <- tapply(meta$MENOPAUSE, meta$MATCH, sum)
+#log.vec1 <- !(meta$MATCH %in% unmatch.pairs1)
+#meta1 <- meta[which(unmatch.pairs1) == T, ]
 
 # For subsetting
 pre <- meta$MENOPAUSE == 0
@@ -43,6 +43,12 @@ post <- meta$MENOPAUSE == 1
 # Oestrogen receptor positive
 pos <- meta$ER == 1
 neg <- meta$ER == 0
+
+# follow-up
+fuQ1 <- meta$DIAGSAMPLINGQ4 == 1
+fuQ2 <- meta$DIAGSAMPLINGQ4 == 2
+fuQ3 <- meta$DIAGSAMPLINGQ4 == 3
+fuQ4 <- meta$DIAGSAMPLINGQ4 == 4
 
 # For sensitivity analyses: less than 55 at diagnosis
 preS2 <- meta$MENOPAUSE == 0 & meta$AGEdiag < 55

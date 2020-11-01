@@ -35,6 +35,19 @@ fits7 <- apply(ints[pre0, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RT
 fits8 <- apply(ints[pos, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
                     CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[pos, ]))
 
+# Follow-up time all subjects by quartile
+fits8 <- apply(ints[fuQ1, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
+              CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[fuQ1, ]))
+
+fits9 <- apply(ints[fuQ2, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
+              CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[fuQ2, ]))
+
+fits10 <- apply(ints[fuQ3, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
+              CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[fuQ3, ]))
+
+fits11 <- apply(ints[fuQ4, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
+              CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[fuQ4, ]))
+
 
 # Tables for manuscript
 # Generate tidy output table from models
@@ -83,6 +96,14 @@ post <- tidy.output(fits4)
 preS1 <- tidy.output(fits7)
 preS2 <- tidy.output(fits6)
 pos <- tidy.output(fits8)
+
+
+# Test for follow-up time
+fu1 <- tidy.output(fits8)
+fu2 <- tidy.output(fits9)
+fu3 <- tidy.output(fits10)
+fu4 <- tidy.output(fits11)
+
 
 # Retain only metabolite groups with at least one p-value < 0.05
 tab <- bind_rows("All" = all, "Post" = post, "Pre" = pre, "Pre.eth" = pre1, .id = "Group") %>%
