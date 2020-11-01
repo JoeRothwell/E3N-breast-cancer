@@ -1,5 +1,37 @@
 # Correlation ethanol - alcohol intake
-source("BC_prep_data.R")
+library(tidyverse)
+meta <- read_csv("metadata.csv", na = "9999")
+ints0 <- read_tsv("1510_XMetaboliteE3N_cpmg_unscaled.txt")
+
+### Categorical analysis of plasma ethanol, no points excluded. Plot of unscaled data
+plot(meta$ALCOHOL, ints0$Ethanol)
+plot(log(meta$ALCOHOL), ints0$Ethanol)
+ethanol.cat <- cut_number(ints0$Ethanol, n = 4, labels = 1:4)
+
+fit <- lm(log(meta$ALCOHOL+0.1) ~ ethanol.cat)
+fit1 <- lm(log(meta$ALCOHOL+0.1) ~ ethanol.cat + meta$BMI + meta$MENOPAUSE)
+# No difference in alcohol intake between Q1 and Q4 ethanol
+
+# Check for weekday/weekend differences
+library(lubridate)
+meta$sampdate2 <- dmy(meta$SAMPDATE)
+meta$sampday <- weekdays(meta$sampdate2)
+table(meta$sampday)
+
+boxplot(ints0$Ethanol ~ sampday, data = meta, ylim = c(0.02, 0.05))
+library(ggplot2)
+ggplot(meta, aes(y = ints0$Ethanol, x = sampday)) + geom_boxplot() +
+  geom_jitter(width = 0.2, size = 0.5) + theme_bw()
+
+# Continuous analysis of plasma ethanol
+# Remove top and bottom 1% of each compound and replace with NA
+outliers <- function(x) x > quantile(x, probs = 0.99) | x < quantile(x, probs = 0.01)
+logicalmat <- apply(ints0, 2, outliers)
+ints0[logicalmat] <- NA
+
+# Scale to unit variance
+ints <- scale(ints0)
+
 plot(meta$ALCOHOL, ints[, 14])
 plot(log(meta$ALCOHOL), ints[, 14], xlab = "log(alcohol, g/day)", ylab = "Ethanol concentration",
      main = "Correlation R-squared = -0.036" )
