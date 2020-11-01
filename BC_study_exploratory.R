@@ -20,25 +20,11 @@ plot1 <- ggplot(meta, aes(x = DIAGSAMPLING)) +
   theme(legend.position = c(0.8, 0.8)) +
   facet_grid(.~menopause, scales = "free_y") + ggtitle("")
 
-
 # Correlation heatmap for paper
 library(corrplot)
 colnames(ints)[1] <- "3-Hydroxybutyrate"
 colnames(ints)[41] <- "N-acetyl glycoproteins"
 cormat <- cor(ints, use = "pairwise.complete.obs")
-
-library(ggcorrplot)
-cordf <- as_tibble(cormat)
-plot2 <- ggcorrplot(cordf, hc.order = T, hc.method = "ward", legend.title = "Scale") + theme_minimal() +
-  scale_x_continuous(expand = c(0,0)) + ggtitle("") +
-  theme(axis.title = element_blank(),
-        axis.text.x = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
-
-# Arrange plots
-library(cowplot)
-plot_grid(plot1, plot2, labels = c("A", "B"), nrow = 2, rel_heights = c(1,2), rel_widths = c(1,2))
 
 # Corrplot and corrr
 colnames(cormat) <- rep("", 43)

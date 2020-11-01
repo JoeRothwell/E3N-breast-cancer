@@ -3,7 +3,69 @@ library(broom)
 library(ggrepel)
 source("BC_prep_data.R")
 
-# Univariate models and smile plots for manuscript
+
+# Figure 1A follow up times
+
+ints0 <- read_tsv("1510_XMetaboliteE3N_cpmg_unscaled.txt")
+ints <- scale(ints0)
+meta <- read.csv("metadata.csv", na = "9999")
+
+# Follow-up time plot for paper
+meta$menopause <- ifelse(meta$MENOPAUSE == 1, "Post-menopausal", "Pre-menopausal")
+
+# Facetted (old)
+library(ggplot2)
+plot1 <- ggplot(meta, aes(x = DIAGSAMPLING)) + 
+  geom_histogram(colour = "black", fill = "grey80")+ theme_minimal() + 
+  scale_fill_manual(values = c("white", "grey80")) + 
+  xlab("Time from blood collection to diagnosis (years)") + ylab("No. cases") +
+  theme(legend.position = c(0.8, 0.8)) +
+  facet_grid(.~menopause, scales = "free_y") + ggtitle("")
+
+# Stacked (new)
+plotA <- ggplot(meta, aes(x = DIAGSAMPLING, fill = menopause)) + 
+  geom_histogram(position = "stack", colour = "black") + 
+  theme_bw(base_size = 10) + 
+  scale_fill_manual(values = c("grey60", "white")) + 
+  xlab("Time from blood collection to diagnosis (years)") + ylab("No. cases") +
+  theme(legend.position = c(0.8, 0.85),
+        legend.title = element_blank()) +
+  ggtitle("")
+
+
+# Plot of alcohol intake versus ethanol concentration
+
+
+
+# Correlation heatmap for paper
+library(corrplot)
+colnames(ints)[1] <- "3-Hydroxybutyrate"
+colnames(ints)[41] <- "N-acetyl glycoproteins"
+cormat <- cor(ints, use = "pairwise.complete.obs")
+
+library(ggcorrplot)
+cordf <- as_tibble(cormat)
+plotC <- ggcorrplot(cordf, hc.order = T, hc.method = "ward", legend.title = "Scale") + theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) + ggtitle("") +
+  theme(axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+# Arrange plots: 2 steps
+library(cowplot)
+plotAB <- plot_grid(plotA, plotB, labels = c("A", "B"), ncol = 2, rel_widths = c(1,1))
+plot_grid(plotAB, plotC, labels = c("A", "C"), nrow = 2, rel_heights = c(1,1.7))
+
+
+
+# Corrplot and corrr: see BC_study_exploratory
+
+
+
+
+
+# Figure 2: Univariate models and smile plots for manuscript
 
 fits0 <- apply(ints, 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
   DURTHSBMB + CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta))
@@ -12,8 +74,9 @@ t1 <- map_df(fits0, tidy) %>% filter(str_detect(term, "x")) %>%
   mutate(p.valueFDR = p.adjust(p.value, method = "fdr")) %>% bind_cols(cmpd.meta)
 
 # Create base plot to cut down code
-base <- ggplot(t1, aes(exp(estimate), log10(p.value))) + geom_point() + theme_bw(base_size = 10) +
-  xlab("Odds ratio per SD increase concentration") + ylab(expression(italic(P)~ "value")) +
+base <- ggplot(t1, aes(exp(estimate), log10(p.value))) + geom_point(shape = 1) + 
+  theme_bw(base_size = 10) +
+  xlab("Odds ratio per SD increase concentration") + ylab(expression(italic(P)~ "-value")) +
   geom_vline(xintercept = 1, size = 0.2, colour = "grey60") + 
   geom_hline(yintercept = log10(0.05), size = 0.2, colour = "grey60") +
   theme(panel.grid.minor = element_blank() , 
@@ -23,7 +86,7 @@ p1 <-
   base %+% xlim(0.8, 1.2) +
   scale_y_reverse(limits = c(0, -2.5), breaks = c(0:-2), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t1[t1$p.value < 0.15, ]) + 
-  labs(title = "A", subtitle = "All subjects")
+  labs(title = "A", subtitle = "All participants")
 
 # Pre-menopausal
 meta1 <- meta[pre, ]
