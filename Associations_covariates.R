@@ -49,6 +49,8 @@ all <- bind_rows(fits0, fits1, fits1a, fits1b, fits2, fits3, fits4, fits5, fits6
   mutate(p.adj = p.adjust(p.value, method = "fdr")) %>%
   bind_cols(cmpd = rep(colnames(ints), 12))
 
+pFDR <- all %>% filter(p.adj < 0.05) %>% select(p.value) %>% max
+
 library(RColorBrewer)
 # Different colour palettes
 set2 <- rep(brewer.pal(8, "Set2"), each = 43, length.out = nrow(all))
@@ -70,9 +72,15 @@ points(x, -log10(all$p.value), pch=19, col=set2, cex = 0.6)
 labs <- c("Meno", "Fast", "Alc", "Life alc.", "Smoke", "BMI", "Age", "BP", 
           "WC", "HRT", "Diabet.", "OC")
 abline(h = -log(0.05), col = "grey")
-abline(h = -log(0.016), col = "red")
-axis(1, at = c(21, 64, 107, 150, 193, 236, 279, 322, 365, 408, 451, 494), labels = labs, 
-     las=1, cex.axis = 0.7)
-text(350, 22.5, "Choline", pos = 2, cex = 0.7)
-text(360, 21.5, "Glycerophosphocholine", pos = 2, cex = 0.7)
+abline(h = -log(pFDR), col = "red")
+
+# Get label positions and add to axis
+midpoint <- ncol(ints)/2
+at.labs <- seq(midpoint, 2*midpoint*length(labs), 2*midpoint)
+axis(1, at = at.labs, labels = labs, las=1, cex.axis = 0.7)
+
+# Make variable for annotations and add to plot
+all1 <- all %>% mutate(p.low = ifelse(-log10(p.value) > 12, p.value, NA))
+text(1:nrow(all), -log10(all1$p.low), all$cmpd, pos = 4, cex = 0.7)
+
 
