@@ -63,10 +63,51 @@ plot_grid(plotAB, plotC, labels = c("A", "C"), nrow = 2, rel_heights = c(1,1.7))
 
 
 
-
-
 # Figure 2: Univariate models and smile plots for manuscript
+# New quicker way (not yet finished). Define models for subsets
+library(survival)
+mclr0 <- function(x, dat) { 
+  clogit(CT ~ x + BMI + SMK + DIABETE + RTH + ALCOHOL + DURTHSBMB + CENTTIME + STOCKTIME + 
+           strata(MATCH), data = dat) 
+}
 
+mclr1 <- function(x, dat) { 
+  clogit(CT ~ x + BMI + SMK + DIABETE + RTH + ALCOHOL + CENTTIME + STOCKTIME + strata(MATCH), 
+         data = dat) 
+}
+
+mclr2 <- function(x, dat) { 
+  clogit(CT ~ x + BMI + SMK + DIABETE + RTH + ALCOHOL + ETHANOL + CENTTIME + 
+           STOCKTIME + strata(MATCH), data = dat) 
+}
+
+meta.eth <- cbind(meta[pre, ], ETHANOL = ints[pre, 14])
+
+# Note: need to remove hormone treatment therapy variable DURTHSBMB
+t1 <- apply(ints, 2, mclr0, dat = meta) %>% map_df(tidy, exponentiate = T) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value)) %>% bind_cols(cmpd.meta)
+
+t2 <- apply(ints[pre, ], 2, mclr1, dat = meta[pre, ]) %>% map_df(tidy, exponentiate = T) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value)) %>% bind_cols(cmpd.meta)
+
+t3 <- apply(ints[post, ], 2, mclr1, dat = meta[post, ]) %>% map_df(tidy, exponentiate = T) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value)) %>% bind_cols(cmpd.meta)
+
+t4 <- apply(ints[pre, -14], 2, mclr2, dat = meta.eth) %>% map_df(tidy, exponentiate = T) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value)) %>% bind_cols(cmpd.meta[-14, ])
+
+all <- bind_rows(all = t1, pre = t2, post = t3, eth = t4, .id = "analysis") %>% 
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"))
+
+# Plot faceting by analysis
+library(ggplot2)
+ggplot(all, aes(x = estimate, y = -log10(p.value))) + geom_point(shape = 1) +
+  facet_wrap(fct_inorder(analysis) ~ ., scales = "free_x") + theme_bw() +
+  geom_vline(xintercept = 1, size = 0.2, colour = "grey60") + 
+  geom_hline(yintercept = -log10(0.05), size = 0.2, colour = "grey60")
+
+
+# Old way used for submitted manuscript
 fits0 <- apply(ints, 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
   DURTHSBMB + CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta))
 
@@ -74,7 +115,7 @@ t1 <- map_df(fits0, tidy) %>% filter(str_detect(term, "x")) %>%
   mutate(p.valueFDR = p.adjust(p.value, method = "fdr")) %>% bind_cols(cmpd.meta)
 
 # Create base plot to cut down code
-base <- ggplot(t1, aes(exp(estimate), log10(p.value))) + geom_point(shape = 1) + 
+base <- ggplot(t1, aes((estimate), log10(p.value))) + geom_point(shape = 1) + 
   theme_bw(base_size = 10) +
   xlab("Odds ratio per SD increase concentration") + ylab(expression(italic(P)~ "-value")) +
   geom_vline(xintercept = 1, size = 0.2, colour = "grey60") + 
