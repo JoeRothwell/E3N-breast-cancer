@@ -83,6 +83,9 @@ ints0[logicalmat] <- NA
 # Scale to unit variance
 ints <- scale(ints0)
 
+# Revisions for reviewers 13 December 2020
+table(fast = meta$FASTING, meno = meta$MENOPAUSE)
+# 65.0% pre-menopasual non-fasting, 63.4% post-menopausal non-fasting
 
 # Other preparation steps (not used)
 
