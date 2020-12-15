@@ -5,9 +5,9 @@ source("BC_prep_data.R")
 library(haven)
 
 # Get reproductive variables and CODBMB/IDENT correspondence and bind together (same number and order)
-rv <- read_sas("d_grossesse_20190107_corrections.sas7bdat")
+rv <- read_sas("d_grossesse_20190107_corrections.sas7bdat") %>% select(-IDENT)
 men <- read_sas("d01_menopauseq1.sas7bdat")
-rv <- men %>% bind_cols(rv)
+rvmen <- men %>% bind_cols(rv)
 ident <- read_xls("E3N_cancer du sein_21072014.xls") %>% select(1:2)
 
 # 1582 subjects in table after removal of low quality spectra
@@ -44,7 +44,7 @@ meta <- read_csv("metadata.csv", na = "9999") %>% #filter(!(MATCH %in% unmatch_p
   mutate(CODBMB = as.character(CODBMB), AGEdiag = AGE + DIAGSAMPLING) %>%
   left_join(ident, by = "CODBMB") %>%
   mutate_at(vars(-AGE, -AGEdiag, -STOCKTIME, -ALCOHOL, -DURTHSBMB, -CODBMB), as.factor) %>%
-  left_join(rv, by = "IDENT")
+  left_join(rvmen, by = "IDENT")
 
 
 library(kableExtra)
