@@ -117,26 +117,36 @@ tab <- bind_rows("All" = all, "Post" = post, "Pre" = pre, "Pre.eth" = pre1, .id 
 
 # Revisions after reviewers' comments
 # mean intensity by case-control status. Join unscaled metabolomics data and metadata (1572)
+# Run data_pre up to line 81 only (unscaled)
 alldat <- cbind(meta, ints0)
-cmpds <- c("NAC 1/2", "Ethanol", "Histidine", "Glycerol", "Ornithine", "Leucine", "Albumin",
+cmpds <- c("NAC", "Ethanol", "Histidine", "Glycerol", "Ornithine", "Leucine", "Albumin", "Glutamine",
            "Glutamate", "Pyruvate")
 
-mn1 <- alldat %>% summarise_at(cmpds, mean)
-mn2 <- alldat %>% filter(MENOPAUSE == 1) %>% summarise_at(cmpds, mean)
-mn3 <- alldat %>% filter(MENOPAUSE == 0) %>% summarise_at(cmpds, mean)
+# Get overall means regardless of CC status (for scaling)
+mn1 <- alldat %>% summarise_at(cmpds, mean, na.rm = T)
+mn2 <- alldat %>% filter(MENOPAUSE == 1) %>% summarise_at(cmpds, mean, na.rm = T)
+mn3 <- alldat %>% filter(MENOPAUSE == 0) %>% summarise_at(cmpds, mean, na.rm = T)
 
-msd1 <- alldat %>% group_by(CT) %>% summarise_at(cmpds, mean)
-msd2 <- alldat %>% filter(MENOPAUSE == 1) %>% group_by(CT) %>% summarise_at(cmpds, mean)
-msd3 <- alldat %>% filter(MENOPAUSE == 0) %>% group_by(CT) %>% summarise_at(cmpds, mean)
+# Get means and SDs by case-control status
+msd1 <- alldat %>% group_by(CT) %>% summarise_at(cmpds, mean, na.rm = T)
+msd2 <- alldat %>% filter(MENOPAUSE == 1) %>% group_by(CT) %>% summarise_at(cmpds, mean, na.rm = T)
+msd3 <- alldat %>% filter(MENOPAUSE == 0) %>% group_by(CT) %>% summarise_at(cmpds, mean, na.rm = T)
 
-#sd1 <- alldat %>% group_by(CT) %>% summarise_at(cmpds, sd)
-#sd2 <- alldat %>% filter(MENOPAUSE == 1) %>% group_by(CT) %>% summarise_at(cmpds, sd)
-#sd3 <- alldat %>% filter(MENOPAUSE == 0) %>% group_by(CT) %>% summarise_at(cmpds, sd)
+msd4 <- alldat %>% group_by(CT) %>% summarise_at(cmpds, sd, na.rm = T)
+msd5 <- alldat %>% filter(MENOPAUSE == 1) %>% group_by(CT) %>% summarise_at(cmpds, sd, na.rm = T)
+msd6 <- alldat %>% filter(MENOPAUSE == 0) %>% group_by(CT) %>% summarise_at(cmpds, sd, na.rm = T)
 
-msd <- bind_rows("all" = msd1, "post" = msd2, "pre" = msd3, "all" = mn1, "post" = mn2,
-                 "pre" = mn3, .id = "subgroup") %>% #replace_na(list(CT = 2)) %>%
-  pivot_longer(-(CT:subgroup)) %>% pivot_wider(names_from = CT) %>% arrange(name) %>%
+# Put data in correct order for means:
+msd <- bind_rows("all" = msd1, "post" = msd2, "pre" = msd3, "pre1" = msd3, "all" = mn1, "post" = mn2,
+                 "pre" = mn3, "pre1" = mn3, .id = "subgroup") %>% #replace_na(list(CT = 2)) %>%
+  pivot_longer(-(CT:subgroup)) %>% pivot_wider(names_from = CT) %>% arrange(fct_inorder(name)) %>%
   mutate(concT = `0`/`NA`, concC = `1`/`NA`)
+
+# For SDs:
+msd0 <- bind_rows("all" = msd4, "post" = msd5, "pre" = msd6, "pre1" = msd6, "all" = mn1, "post" = mn2,
+                  "pre" = mn3, "pre1" = mn3, .id = "subgroup") %>% #replace_na(list(CT = 2)) %>%
+  pivot_longer(-(CT:subgroup)) %>% pivot_wider(names_from = CT) %>% arrange(fct_inorder(name)) %>%
+  mutate(sdT = `0`/`NA`, sdC = `1`/`NA`)
 
 
 
