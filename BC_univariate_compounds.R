@@ -115,9 +115,28 @@ tab <- bind_rows("All" = all, "Post" = post, "Pre" = pre, "Pre.eth" = pre1, .id 
 # Copy and paste this into manuscript via Excel
 
 
+# Revisions after reviewers' comments
+# mean intensity by case-control status. Join unscaled metabolomics data and metadata (1572)
+alldat <- cbind(meta, ints0)
+cmpds <- c("NAC 1/2", "Ethanol", "Histidine", "Glycerol", "Ornithine", "Leucine", "Albumin",
+           "Glutamate", "Pyruvate")
 
+mn1 <- alldat %>% summarise_at(cmpds, mean)
+mn2 <- alldat %>% filter(MENOPAUSE == 1) %>% summarise_at(cmpds, mean)
+mn3 <- alldat %>% filter(MENOPAUSE == 0) %>% summarise_at(cmpds, mean)
 
+msd1 <- alldat %>% group_by(CT) %>% summarise_at(cmpds, mean)
+msd2 <- alldat %>% filter(MENOPAUSE == 1) %>% group_by(CT) %>% summarise_at(cmpds, mean)
+msd3 <- alldat %>% filter(MENOPAUSE == 0) %>% group_by(CT) %>% summarise_at(cmpds, mean)
 
+#sd1 <- alldat %>% group_by(CT) %>% summarise_at(cmpds, sd)
+#sd2 <- alldat %>% filter(MENOPAUSE == 1) %>% group_by(CT) %>% summarise_at(cmpds, sd)
+#sd3 <- alldat %>% filter(MENOPAUSE == 0) %>% group_by(CT) %>% summarise_at(cmpds, sd)
+
+msd <- bind_rows("all" = msd1, "post" = msd2, "pre" = msd3, "all" = mn1, "post" = mn2,
+                 "pre" = mn3, .id = "subgroup") %>% #replace_na(list(CT = 2)) %>%
+  pivot_longer(-(CT:subgroup)) %>% pivot_wider(names_from = CT) %>% arrange(name) %>%
+  mutate(concT = `0`/`NA`, concC = `1`/`NA`)
 
 
 
