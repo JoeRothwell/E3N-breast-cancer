@@ -12,18 +12,15 @@ ident <- read_xls("E3N_cancer du sein_21072014.xls") %>% select(1:2)
 
 # 1582 subjects in table after removal of low quality spectra
 library(tidyverse)
-meta <- read_csv("metadata.csv", na = "9999") %>% #filter(!(MATCH %in% unmatch_pairs)) %>%
-  select(CODBMB,
-         CT,                    # case-control status
+meta0 <- read_csv("metadata.csv", na = "9999") %>% #filter(!(MATCH %in% unmatch_pairs)) %>%
+  select(CODBMB, CT,             # case-control status
          AGE,                   
          BMICat1, 
          RTHCat1,               # Waist-hip ratio categorical
          MENOPAUSE,             # menopausal status at blood collection
-         SMK, 
-         DIABETE, 
-         Life_Alcohol_Pattern_1,
-         ALCOHOL,
-         BP, 
+         
+         SMK, DIABETE, Life_Alcohol_Pattern_1, ALCOHOL, BP, 
+         
          CO,                    # previous oral contraceptive use
          Trait_Horm,            # menopausal treatment therapy taken 24h before blood collection
          #DURTHSDIAG,            # Duration of use of therapy at date of diagnosis
@@ -34,13 +31,12 @@ meta <- read_csv("metadata.csv", na = "9999") %>% #filter(!(MATCH %in% unmatch_p
          BEHAVIOUR,             # Tumour behaviour
          SUBTYPE, 
          #CERB2,                # HER2 receptor OMIT mostly unknown
-         ER,                    # Estrogen receptor
-         PR,                    # Progesterone receptor
-         SBR, 
-         GRADE, 
-         STADE, 
-         DIAGSAMPLING,
-         DIAGSAMPLINGCat1) %>% 
+         ER,                    # Estrogen receptor positive
+         PR,                    # Progesterone receptor positive
+         SBR, GRADE, STADE, DIAGSAMPLING,
+         DIAGSAMPLINGCat1) 
+
+meta <- meta0 %>% 
   mutate(CODBMB = as.character(CODBMB), AGEdiag = AGE + DIAGSAMPLING) %>%
   left_join(ident, by = "CODBMB") %>%
   mutate_at(vars(-AGE, -AGEdiag, -STOCKTIME, -ALCOHOL, -DURTHSBMB, -CODBMB), as.factor) %>%
@@ -138,9 +134,14 @@ summ <-
 
   )
 
-
+# By case-control status
 st <- meta %>% group_by(CT) %>% summary_table(summ)
 print(st, cnames = c("Controls (N=791)", "Cases (N=791)"))
+
+# By case-control and menopausal status (for reviewers)
+st <- meta %>% group_by(CT, MENOPAUSE) %>% summary_table(summ)
+print(st, cnames = c("Pre, controls (N=180)", "Pre, cases (N=179)", 
+                     "Post, controls (N=611)", "Post, cases (N=612)"))
 # Copy and paste output into table1_bc_ms.Rmd and render to word/pdf etc
 
 
@@ -152,7 +153,7 @@ print(st, cnames = c("Controls (N=791)", "Cases (N=791)"))
 # Table of tumour characteristics by menopausal status
 summ1 <-
   list("Age at diagnosis" =
-      list("Mean (SD)" =  ~ mean_sd(AGEdiag, digits = 1)),
+      list("Mean (SD)" =  ~ mean_sd(AGEdiag, na_rm = T, digits = 1)),
     
     "Time between sampling and diagnosis" =
       
@@ -203,7 +204,9 @@ summ1 <-
     
   )
 
-st1 <- meta %>% filter(CT == 1) %>% group_by(MENOPAUSE) %>% summary_table(summ1)
+st1 <- meta %>% #filter(CT == 1) %>% group_by(MENOPAUSE) %>% 
+  summary_table(summ1)
+print(st1)
 print(st1, cnames = c("Pre-menopausal", "Post-menopausal"))
 
 # ---------------------------------------------------------------
