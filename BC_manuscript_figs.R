@@ -81,7 +81,7 @@ mclr2 <- function(x, dat) {
 meta.eth <- cbind(meta[pre, ], ETHANOL = ints[pre, 14])
 
 # Note: need to remove hormone treatment therapy variable DURTHSBMB
-t1a <- apply(ints, 2, mclr, dat = meta) %>% map_df(tidy, exponentiate = T) %>%
+t1 <- apply(ints, 2, mclr0, dat = meta) %>% map_df(tidy, exponentiate = T) %>%
   filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr")) %>% bind_cols(cmpd.meta)
 
 t2 <- apply(ints[pre, ], 2, mclr1, dat = meta[pre, ]) %>% map_df(tidy, exponentiate = T) %>%
@@ -104,6 +104,18 @@ t7a <- apply(ints[agehi, ], 2, mclr0, dat = meta[agehi, ]) %>% map_df(tidy, expo
 
 all <- bind_rows(all = t1, pre = t2, post = t3, eth = t4, .id = "analysis") %>% 
   filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"))
+
+# All and post-menopausal for fasting subjects only
+t8 <- apply(ints[fast, ], 2, mclr0, dat = meta[fast, ]) %>% map_df(tidy, exponentiate = T) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr")) %>% bind_cols(cmpd.meta)
+
+t9 <- apply(ints[fast1, ], 2, mclr1, dat = meta[fast1, ]) %>% map_df(tidy, exponentiate = T) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr")) %>% bind_cols(cmpd.meta)
+
+t10 <- apply(ints[fast0, ], 2, mclr1, dat = meta[fast0, ]) %>% map_df(tidy, exponentiate = T) %>%
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr")) %>% bind_cols(cmpd.meta)
+
+
 
 # Plot faceting by analysis
 library(ggplot2)
@@ -154,9 +166,25 @@ library(cowplot)
 plot_grid(p1, p3, p2, p4, #labels = c('A', 'B', 'C', 'D'), 
           label_size = 12)  
 
+# Sensitivity analysis for reviewers fasting status Dec 2020
 
+all <- bind_rows(Premenopausal = t2, Postmenopausal = t3, 
+                 Premenopausal.fasting = t10, Postmenopausal.fasting = t9, .id = "analysis") %>% 
+  filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"))
 
+#nlist <- c("Pre-menopausal", "Post-menopausal", "Pre-meno. fasting", "Post-meno. fasting")
 
+ggplot(all, aes(x = estimate, y = -log10(p.value))) + 
+  geom_text_repel(aes(label = display_name), size = 3, segment.colour = "grey",
+                  data = all[all$p.value < 0.06, ] ) +
+  geom_point(shape = 1) +
+  facet_wrap(fct_inorder(analysis)  ~ ., scales = "fixed") + 
+  #facet_grid(. ~ fct_inorder(analysis), scales = "free_x") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank()) +
+  geom_vline(xintercept = 1, size = 0.2, colour = "grey60") + 
+  geom_hline(yintercept = -log10(0.05), size = 0.2, colour = "grey60") +
+  xlab("Odds ratio")
 
 
 

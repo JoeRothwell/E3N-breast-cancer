@@ -39,6 +39,9 @@ pre <- meta$MENOPAUSE == 0
 post <- meta$MENOPAUSE == 1 
 #agehi <- meta$Age1 == 1
 #agelo <- meta$Age1 == 0
+fast <- meta$FASTING == 1
+fast1 <- meta$FASTING == 1 & meta$MENOPAUSE == 1
+fast0 <- meta$FASTING == 1 & meta$MENOPAUSE == 0
 
 # Oestrogen receptor positive
 pos <- meta$ER == 1

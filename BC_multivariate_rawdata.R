@@ -13,6 +13,7 @@ metaQC <- read_xlsx("1510_MatriceY_CohorteE3N_Appar.xlsx", sheet = 4, na = ".")
 # PCA scores plots (THAW_DATE removes QCs/blanks)
 dat1 <- rawints %>% remove_constant() %>% as.matrix
 pca <- prcomp(scaling(dat1, type = "pareto"), scale. = F, rank. = 10)
+library(pca3d)
 pca2d(pca, group = metaQC$WEEKS)
 box(which = "plot", lty = "solid")
 
@@ -23,7 +24,8 @@ ggplot(data.frame(pca$x), aes(PC1, PC2, colour = as.factor(metaQC$TYPE_ECH),
   xlab("Score on PC1 (37.6% variance explained)") + ylab("Score on PC2 (25.7% variance explained)") +
   scale_color_discrete(labels = c("Quality controls", "Experimental samples")) +
   scale_shape_discrete(labels = c("Quality controls", "Experimental samples")) +
-  theme(legend.position = c(0.83,0.1), legend.title = element_blank()) +
+  theme(legend.position = c(0.83,0.1), panel.grid.major = element_blank(),
+        legend.title = element_blank()) +
   geom_hline(yintercept = 0, linetype = "dashed") +
   geom_vline(xintercept = 0, linetype = "dashed") +
   ggtitle("A")
@@ -41,6 +43,7 @@ mean(rsd); median(rsd); IQR(rsd); quantile(rsd)
 
 ggplot(tibble(rsd), aes(x = rsd)) + geom_histogram(colour = "black", fill = "grey80", binwidth = 2) + 
   theme_bw() + xlab("Relative Standard Deviation (%)") + ylab("Number of chemical shift regions") +
+  theme(panel.grid.major = element_blank()) +
   annotate("text", x = 80, y = 1200, label = "Mean RSD = 12.3%") +
   annotate("text", x = 80, y = 1100, label = "Median RSD = 6.9%, IQR = 1.3-18.7%") + ggtitle("B")
 
@@ -68,8 +71,7 @@ plot(props.raw)
 
 # Adjust for fixed effects only. Random effects model with lme4 did not work, boundary fit or didn't converge
 # Note: NAs in CENTTIME, so adjusted matrix loses these 10 observations
-adj <- function(x) residuals(lm(x ~ PLACE + WEEKS + #DIABETE + 
-                                  FASTING + CENTTIMECat1 + STOCKTIME, data = meta))
+adj <- function(x) residuals(lm(x ~ PLACE + WEEKS + FASTING + CENTTIMECat1 + STOCKTIME, data = meta))
 adjmat <- apply(concs, 2, adj)
 # Final data matrix used for models below
 #saveRDS(adjmat, "adjusted_NMR_features.rds")
@@ -111,6 +113,11 @@ diagover55 <- meta$AGEdiag >= 55
 diagunder55 <- meta$AGEdiag < 55
 followup2 <- meta$DIAGSAMPLINGCat4 == 1
 followup5 <- meta$DIAGSAMPLINGCat1 == 2
+# Fasting status for reviewers
+fastN <- meta$FASTING == 0
+fastY <- meta$FASTING == 1
+fast0 <- meta$MENOPAUSE == 0 & meta$FASTING == 1
+fast1 <- meta$MENOPAUSE == 1 & meta$FASTING == 1
 
 # Get median follow up times
 median(meta$DIAGSAMPLING, na.rm = T)
@@ -120,6 +127,8 @@ median(meta$DIAGSAMPLING[diagover55], na.rm = T)
 median(meta$DIAGSAMPLING[diagunder55], na.rm = T)
 median(meta$DIAGSAMPLING[followup2], na.rm = T)
 median(meta$DIAGSAMPLING[followup5], na.rm = T)
+median(meta$DIAGSAMPLING[fastY], na.rm = T)
+median(meta$DIAGSAMPLING[fastN], na.rm = T)
 
 library(caret)
 library(pROC)
@@ -162,10 +171,21 @@ p4 <- bc.roc(all[diagunder55, ], k = 5, times = 5)
 p5 <- bc.roc(all[followup2, ], k = 5, times = 5)
 p6 <- bc.roc(all[followup5, ], k = 10)
 
+# Fasting status
+p7 <- bc.roc(all[fastN, ], k = 10)
+p7a <- bc.roc(all[fastY, ], k = 10)
+p8 <- bc.roc(all[fast0, ], k = 5, times = 5)
+p9 <- bc.roc(all[fast1, ], k = 5, times = 5)
+
 # List ROC objects and extract AUCs to a data frame
 ll <- list(p0, p1, p2, p3, p4, p5, p6)
 aucs <- sapply(ll, "[", 16)
-auc.df <- do.call(rbind, auc.ci)
+auc.df <- do.call(rbind, aucs)
+
+# For fasting comparison
+ll1 <- list(p0, p1, p2, p7a, p7)
+aucs <- sapply(ll1, "[", 16)
+auc.df1 <- do.call(rbind, aucs)
 
 # Get accuracy only (no ROC)
 a0 <- bc.roc(all, k = 10, get.roc = F)

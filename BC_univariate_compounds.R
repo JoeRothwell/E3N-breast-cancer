@@ -2,6 +2,7 @@
 # Also heatmap of differences
 source("BC_prep_data.R")
 library(broom)
+library(survival)
 
 # CLR models to get odds ratios for metabolites: all, pre-menopausal only and post-menopausal only
 # All subjects
@@ -20,6 +21,16 @@ fits3 <- apply(ints[pre, -14], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + 
 # Post-menopausal
 fits4 <- apply(ints[post, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + DURTHSBMB + 
                      CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[post, ]))
+
+# Fasting only for review Dec 2020
+fits1a <- apply(ints[fast, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL +
+                    DURTHSBMB + CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[fast, ]))
+
+fits1b <- apply(ints[fast0, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL +
+                    CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[fast0, ]))
+
+fits1c <- apply(ints[fast1, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL +
+                    CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[fast1, ]))
 
 # Sensitivity analysis for supplement table 5. Adjust Life_Alcohol_Pattern2, exclude cases <55 at diagnosis,
 # exclude cases diagnosed first 2 years of follow up
@@ -96,13 +107,16 @@ post <- tidy.output(fits4)
 preS1 <- tidy.output(fits7)
 preS2 <- tidy.output(fits6)
 pos <- tidy.output(fits8)
+fast <- tidy.output(fits1a)
+fast0 <- tidy.output(fits1b)
+fast1 <- tidy.output(fits1c)
 
 
 # Test for follow-up time
 fu1 <- tidy.output(fits8)
 fu2 <- tidy.output(fits9)
 fu3 <- tidy.output(fits10)
-fu4 <- tidy.output(fits11)
+fu4 <- tidy.output(fits1a)
 
 
 # Retain only metabolite groups with at least one p-value < 0.05
