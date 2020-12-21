@@ -49,6 +49,17 @@ plotC <- ggcorrplot(cordf, hc.order = T, hc.method = "ward", legend.title = "Sca
   theme(axis.title = element_blank(), axis.text.x = element_blank(),
         panel.grid.major = element_blank(), panel.grid.minor = element_blank())
 
+# For fasting participants only (reviewers revisions)
+ints.fast <- ints[meta$FASTING == 1, ]
+cormatF <- cor(ints.fast, use = "pairwise.complete.obs")
+cordff <- as_tibble(cormatF)
+plotD <-
+ggcorrplot(cordff, hc.order = T, hc.method = "ward", legend.title = "Scale") + theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) + ggtitle("") +
+  theme(axis.title = element_blank(), axis.text.x = element_blank(),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+
 # Arrange plots: 2 steps
 library(cowplot)
 plotAB <- plot_grid(plotA, plotB, labels = c("A", "B"), ncol = 2, rel_widths = c(1,1))
