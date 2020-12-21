@@ -19,20 +19,21 @@ meta.posF <- meta %>% filter(MENOPAUSE == 1 & FASTING == 1)
 
 # Models for alcohol intake (remove DURTHSDIAG from pre and post)
 library(survival)
-f0 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + DURTHSDIAG + CENTTIME + STOCKTIME + strata(MATCH), data = meta)
-f1 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + CENTTIME + STOCKTIME + strata(MATCH), data = meta.pre)
-f2 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + CENTTIME + STOCKTIME + strata(MATCH), data = meta.pos)
+f0 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + DURTHSDIAG + strata(MATCH), data = meta)
+f1 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + strata(MATCH), data = meta.pre)
+f2 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + strata(MATCH), data = meta.pos)
 
 # Fasting models
-f3 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + DURTHSDIAG + CENTTIME + STOCKTIME + strata(MATCH), data = metaF)
-f4 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + CENTTIME + STOCKTIME + strata(MATCH), data = meta.preF)
-f5 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + CENTTIME + STOCKTIME + strata(MATCH), data = meta.posF)
+f3 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + DURTHSDIAG + strata(MATCH), data = metaF)
+f4 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + strata(MATCH), data = meta.preF)
+f5 <- clogit(CT ~ I(ALCOHOL/10) + BMI + SMK + DIABETE + RTH + strata(MATCH), data = meta.posF)
 
 #Fasting models
 
 library(broom)
-mods <- map_df(list(f0, f1, f2, f3, f4, f5), ~tidy(., exponentiate = T)) %>% filter(str_detect(term, "ALCOHOL/10")) %>%
-        mutate_if(is.numeric, ~round(., 2)) %>% unite(OR.CI, estimate, conf.low, conf.high, sep = "-")
+mods <- map_df(list(f0, f1, f2, f3, f4, f5), ~tidy(., exponentiate = T, conf.int = T)) %>% 
+        filter(str_detect(term, "ALCOHOL/10")) %>% mutate_if(is.numeric, ~round(., 2)) %>% 
+        unite(OR.CI, estimate, conf.low, conf.high, sep = "-")
 
 # Result: Alcohol is borderline associated with risk overall and post-menopausal.
 
