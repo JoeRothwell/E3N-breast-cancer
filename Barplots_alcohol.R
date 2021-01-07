@@ -2,17 +2,22 @@
 library(tidyverse)
 
 # Read 1623 observations of 44 intensity variables (appears to be final scaled data) and metadata
-ints <- read_tsv("1507_XMetabolite_std_cpmg_E3N.txt")
+#ints <- read_tsv("1507_XMetabolite_std_cpmg_E3N.txt")
+ints <- read_tsv("1510_XMetaboliteE3N_cpmg_unscaled.txt") %>% scale()
 
 # Lifestyle data. Subset variables needed
 meta <- read_csv("metadata.csv", na = "9999")
-data <- left_join(meta, ints, by = "CODBMB")
+#data <- left_join(meta, ints, by = "CODBMB")
+data <- bind_cols(meta, data.frame(ints))
+
+# Barplot of alcohol intake g/day by menopausal status
 mat <- data %>% group_by(CT, MENOPAUSE) %>% summarise(alcohol = mean(ALCOHOL)) %>% 
   spread(MENOPAUSE, alcohol) %>% as.matrix
 
 library(gplots)
 barplot2(mat[ , -1], beside = T, col = c("grey12", "grey82"), ylim = c(0, 20),
-         names.arg = c("Pre-menopausal", "Post-menopausal"), legend = c("Controls", "Cases"))
+         names.arg = c("Pre-menopausal", "Post-menopausal"), legend = c("Controls", "Cases"),
+         ylab = "Alcohol intake g/day")
 
 pval.pre <- wilcox.test(ALCOHOL ~ CT, data = data, subset = MENOPAUSE == 0)$p.value
 pval.post <- wilcox.test(ALCOHOL ~ CT, data = data, subset = MENOPAUSE == 1)$p.value
@@ -38,16 +43,23 @@ cor.test(data$ALCOHOL, data$Ethanol, use = "pairwise.complete.obs", method = "pe
 
 data$alcQ4 <- cut_number(data$ALCOHOL, n=4, label = c("Q1", "Q2", "Q3", "Q4"))
 boxplot(Ethanol ~ alcQ4, data = data)
-fit <- kruskal.test(Ethanol ~ alcQ4, data = data)
+fit <- kruskal.test(Ethanol ~ alcQ4, data = data) # 0.7
+fit.pre <- kruskal.test(Ethanol ~ alcQ4, data = data[data$MENOPAUSE == 0, ]) # 0.55
+fit.pos <- kruskal.test(Ethanol ~ alcQ4, data = data[data$MENOPAUSE == 1, ]) # 0.86
 
 # Plot boxplot of intakes for manuscript panel plot
-plotB <- ggplot(data, aes(x = alcQ4, y = Ethanol)) + geom_boxplot(outlier.shape = NA, fill = "grey") +
-  geom_jitter(width = 0.2, colour = "black", size = 0.8) + 
+plotB <- ggplot(data, aes(x = alcQ4, y = Ethanol, fill = as.factor(MENOPAUSE))) + 
+  geom_boxplot(outlier.shape = NA, #fill = "grey", 
+               position = position_dodge()) +
+  scale_fill_manual(values = c("white", "grey")) +
+  #geom_jitter(width = 0.2, colour = "black", size = 0.8) + 
+  geom_point(position = position_jitterdodge(), size = 0.8) +
   annotate("text", label = "Kruskal-Wallis P = 0.70", x = 2.5, y = 1.5, size = 3) +
-  ylim(-1.5, 1.5) + 
+  ylim(-1.0, 1.1) + 
   theme_bw(base_size = 10) +
   xlab("Category reported alcohol intake (quartile)") +
   ylab("Plasma ethanol (scaled intensity)") +
+  theme(panel.grid.minor = element_blank()) +
   ggtitle("")
 
 # Correlated with outliers but correlation goes away after removing these
