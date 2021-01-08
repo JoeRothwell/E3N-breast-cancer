@@ -201,8 +201,9 @@ plot_grid(p1, p3, p2, p4, labels = LETTERS[1:4], label_size = 12)
 
 # Sensitivity analysis for reviewers fasting status Dec 2020
 
-all <- bind_rows(Premenopausal = t2, Postmenopausal = t3, 
-                 Premenopausal.fasting = t10, Postmenopausal.fasting = t9, .id = "analysis") %>% 
+all <- bind_rows(`Pre-menopausal women` = t2, `Post-menopausal women` = t3, 
+                 `Pre-menopausal women (fasting)` = t10, 
+                 `Post-menopausal women (fasting)` = t9, .id = "analysis") %>% 
   filter(term == "x") %>% mutate(p.adj = p.adjust(p.value, method = "fdr"))
 
 #nlist <- c("Pre-menopausal", "Post-menopausal", "Pre-meno. fasting", "Post-meno. fasting")
@@ -216,8 +217,8 @@ ggplot(all, aes(x = estimate, y = -log10(p.value))) +
   theme_bw() +
   theme(panel.grid.major = element_blank()) +
   geom_vline(xintercept = 1, size = 0.2, colour = "grey60") + 
-  geom_hline(yintercept = -log10(0.05), size = 0.2, colour = "grey60") +
-  xlab("Odds ratio")
+  geom_hline(yintercept = -log10(0.05), colour = "black", linetype = "dotted") +
+  xlab("Odds ratio") + ylab(expression(paste(-log10, " (", italic(P), "-value)")))
 
 
 
