@@ -3,15 +3,16 @@
 # Source prep data to remove the 10 subjects not matched on menopausal status
 source("BC_prep_data.R")
 library(haven)
+library(tidyverse)
 
 # Get reproductive variables and CODBMB/IDENT correspondence and bind together (same number and order)
 rv <- read_sas("d_grossesse_20190107_corrections.sas7bdat") %>% select(-IDENT)
 men <- read_sas("d01_menopauseq1.sas7bdat")
 rvmen <- men %>% bind_cols(rv)
 ident <- read_xls("E3N_cancer du sein_21072014.xls") %>% select(1:2)
+oc <- read_sas("oc_joe.sas7bdat") %>% select(IDENT, totduroc, ppille)
 
 # 1582 subjects in table after removal of low quality spectra
-library(tidyverse)
 meta0 <- read_csv("metadata.csv", na = "9999") %>% #filter(!(MATCH %in% unmatch_pairs)) %>%
   select(CODBMB, CT,             # case-control status
          AGE,                   
@@ -41,6 +42,13 @@ meta <- meta0 %>%
   left_join(ident, by = "CODBMB") %>%
   mutate_at(vars(-AGE, -AGEdiag, -STOCKTIME, -ALCOHOL, -DURTHSBMB, -CODBMB), as.factor) %>%
   left_join(rvmen, by = "IDENT")
+
+# For reviewers comments: get duration of OC use
+table()
+meta1 <- meta %>% left_join(oc, by = "IDENT")
+
+# Check how many pairs have duration of OC data
+meta1$durOC <- ifelse(is.na(meta1$totduroc), 0, 1)
 
 
 library(kableExtra)

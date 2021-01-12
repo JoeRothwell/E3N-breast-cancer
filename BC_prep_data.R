@@ -12,14 +12,21 @@ library(readxl)
 # Bind together and add IDENT
 #rv <- men %>% bind_cols(rv) %>% left_join(idents, by = "IDENT")
 
+# Add ident and duration of OC use
+idents <- read_xls("E3N_cancer du sein_21072014.xls") %>% select(1:2)
+oc <- read_sas("oc_joe.sas7bdat") %>% select(IDENT, totduroc, ppille)
+
 # First get metadata. Set control variables to cases, calculate age at diagnosis, add reproductive variables
 meta <- read_csv("metadata.csv", na = "9999") %>%
   fill(c(DIAGSAMPLING, ER), .direction = "downup") %>% 
-  mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0), AGEdiag = AGE + DIAGSAMPLING) %>%
+  mutate(DURTHSBMBCat = ifelse(DURTHSBMB > 0, 1, 0), AGEdiag = AGE + DIAGSAMPLING,
+         CODBMB = as.character(CODBMB)) %>%
   #mutate(CODBMB, as.character) %>%
-  #left_join(idents, by = "CODBMB") %>%
+  left_join(idents, by = "CODBMB") %>%
+  left_join(oc, by = "IDENT") %>%
   #left_join(rv, by = "IDENT") %>%
-  mutate_at(vars(SMK, DIABETE), as.factor)
+  mutate(durOC = if_else(totduroc > 120, "high", "low")) %>%
+  mutate_at(vars(SMK, DIABETE, durOC), as.factor)
   
 meta$DIAGSAMPLINGQ4 <- cut_number(meta$DIAGSAMPLING, 4, labels = F)
 

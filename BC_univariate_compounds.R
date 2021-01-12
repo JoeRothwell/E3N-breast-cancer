@@ -59,6 +59,16 @@ fits10 <- apply(ints[fuQ3, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + R
 fits11 <- apply(ints[fuQ4, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + 
               CENTTIME + STOCKTIME + strata(MATCH) + x, data = meta[fuQ4, ]))
 
+# Duration of OC use
+fits1oc <- apply(ints, 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + DURTHSBMB + 
+              DURTHSBMB + CENTTIME + STOCKTIME + durOC + strata(MATCH) + x, data = meta))
+
+fits2oc <- apply(ints[pre, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + #DURTHSBMB + 
+                CENTTIME + STOCKTIME + durOC + strata(MATCH) + x, data = meta[pre, ]))
+
+# Post-menopausal
+fits4oc <- apply(ints[post, ], 2, function(x) clogit(CT ~ BMI + SMK + DIABETE + RTH + ALCOHOL + DURTHSBMB + 
+                CENTTIME + STOCKTIME + durOC + strata(MATCH) + x, data = meta[post, ]))
 
 # Tables for manuscript
 # Generate tidy output table from models
@@ -111,6 +121,10 @@ fast <- tidy.output(fits1a)
 fast0 <- tidy.output(fits1b)
 fast1 <- tidy.output(fits1c)
 
+# Duration of OC use for reviewers' comments
+all.oc <- tidy.output(fits1oc)
+pre.oc <- tidy.output(fits2oc)
+pos.oc <- tidy.output(fits4oc)
 
 # Test for follow-up time
 fu1 <- tidy.output(fits8)
