@@ -1,6 +1,6 @@
 # Preparation of data for BC study (after exploration of data)
 # 2 datasets for continuous and categorical analysis
-
+library(haven)
 library(tidyverse)
 library(readxl)
 # Get CODBMB/IDENT correspondance
