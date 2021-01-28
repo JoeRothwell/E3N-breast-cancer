@@ -166,9 +166,12 @@ msd6 <- alldat %>% filter(MENOPAUSE == 0) %>% group_by(CT) %>% summarise_at(cmpd
 
 # Put data in correct order for means:
 msd <- bind_rows("all" = msd1, "post" = msd2, "pre" = msd3, "pre1" = msd3, "all" = mn1, "post" = mn2,
-                 "pre" = mn3, "pre1" = mn3, .id = "subgroup") %>% #replace_na(list(CT = 2)) %>%
+                 "pre" = mn3, "pre1" = mn3, .id = "subgroup")
+
+# Calculate scaled means
+msdcalc <- msd %>%
   pivot_longer(-(CT:subgroup)) %>% pivot_wider(names_from = CT) %>% arrange(fct_inorder(name)) %>%
-  mutate(concT = `0`/`NA`, concC = `1`/`NA`)
+  mutate(ctrl.scale.grp = `0`/`NA`, case.scale.grp = `1`/`NA`)
 
 # For SDs:
 msd0 <- bind_rows("all" = msd4, "post" = msd5, "pre" = msd6, "pre1" = msd6, "all" = mn1, "post" = mn2,
@@ -176,6 +179,23 @@ msd0 <- bind_rows("all" = msd4, "post" = msd5, "pre" = msd6, "pre1" = msd6, "all
   pivot_longer(-(CT:subgroup)) %>% pivot_wider(names_from = CT) %>% arrange(fct_inorder(name)) %>%
   mutate(sdT = `0`/`NA`, sdC = `1`/`NA`)
 
+
+### For 2nd round of reviewers' comments: scale to all subjects, not group specific
+msd.new <- bind_rows("all" = msd1, "post" = msd2, "pre" = msd3, "pre1" = msd3, "all" = mn1, "post" = mn1,
+                     "pre" = mn1, "pre1" = mn1, .id = "subgroup") 
+
+# Calculate scaled means
+msdcalc1 <- msd.new %>%
+  pivot_longer(-(CT:subgroup)) %>% pivot_wider(names_from = CT) %>% arrange(fct_inorder(name)) %>%
+  mutate(ctrl.scale.all = `0`/`NA`, case.scale.all = `1`/`NA`)
+
+# Scaled SDs
+msd.new1 <- bind_rows("all" = msd4, "post" = msd5, "pre" = msd6, "pre1" = msd6, "all" = mn1, "post" = mn1,
+                  "pre" = mn1, "pre1" = mn1, .id = "subgroup") 
+
+msdcalc2 <- msd.new1 %>%
+  pivot_longer(-(CT:subgroup)) %>% pivot_wider(names_from = CT) %>% arrange(fct_inorder(name)) %>%
+  mutate(sdT = `0`/`NA`, sdC = `1`/`NA`)
 
 
 # Old: forest plots (not used in manuscript)
