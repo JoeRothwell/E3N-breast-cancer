@@ -27,20 +27,58 @@ table(bctn$conco) # only 12 of 256 are concomitant
 min(bctn$ddiag) # First diagnosis is 18.12.1990
 plot(bctn$ddiag) # Only 4 before 1995
 
+# Warning: if repeating the analysis, add code to exclude the few concomitant
+# tumours that are mistakenly classified as TN (almalgamation of status).
+
 # Get ident
 unique(bctn$ident) %>% length
 
-# Select important variables only
-dat <- bctn %>% select(IDENT = ident, conco, pre_inc1, pre_inc2, ddiag, 
-                       ro1, ro2, rp1, rp2, cerb2_1, cerb2_2)
+# Select important variables only (tumour IDs also added)
+dat <- bctn %>% select(ident, conco, pre_inc1, pre_inc2, ddiag, ro1, ro2, rp1, rp2, 
+                       cerb2_1, cerb2_2, id_tum1, id_tum2)
+
+#dat <- bctn %>% select(IDENT = ident, conco, pre_inc1, pre_inc2, ddiag, 
+#                       ro1, ro2, rp1, rp2, cerb2_1, cerb2_2)
 
 #write.csv(dat, "Ident_triple_negatif.csv")
 
+# Biobank data from Rahime and join to original data
+bb <- read_xlsx("Ident_Triple_Negatif.xlsx")
+tn <- dat %>% inner_join(bb, by = "ident") %>% filter(disponibilite == T)
+write.csv(tn, "TNBC_biobank_blood.csv")
+
+plot(tn$ddiag)
+
 # Compare Ident to case control: run prep_data down to meta
+# Can omit and go straight to tn.blood below
 idents <- read_xls("E3N_cancer du sein_21072014.xls") %>% select(1:2)
 meta <- read_csv("metadata.csv", na = "9999") %>% mutate(CODBMB = as.character(CODBMB)) %>%
   left_join(idents, by = "CODBMB")
 meta.tn <- meta %>% inner_join(dat, by = "IDENT") #28 TN cases
 
+# Get samples to look for from Laure's file
+tn.blood <- read_xlsx("E3N TNBC blood.xlsx") %>% filter(INCLUSION %in% c(3,6)) %>%
+  select(ident, INCLUSION)
+tn.blood$ident <- as.character(tn.blood$ident)
+meta.tn <- tn.blood %>% inner_join(dat, by = "ident") 
+write.csv(meta.tn, "recherche_tumeurs_TN.csv")
+
+# Export to send to Rafika to look for tumours
+
+
 # From previously extracted data, for comparison
 sum(meta$CERB2 == 0 & meta$ER == 0 & meta$PR == 0, na.rm = T) # 22 TN cases
+
+
+### Get positive samples (ER and PR positive)
+bcer <- bcc %>% filter(ro1 == "Positif" | ro2 == "Positif" | ro3 == "Positif" | ro4 == "Positif")
+bcdp <- bcer %>% filter(rp1 == "Positif" | rp2 == "Positif" | rp3 == "Positif" | rp4 == "Positif") %>%
+  # Filter by date according to instructions from Laure
+  filter(ddiag > "2005-07-31")
+
+dat <- bcdp %>% select(ident, conco, pre_inc1, pre_inc2, ddiag, 
+                       ro1, ro2, rp1, rp2, cerb2_1, cerb2_2)
+write.csv(dat, "Ident_erpos_prpos.csv")
+
+
+
