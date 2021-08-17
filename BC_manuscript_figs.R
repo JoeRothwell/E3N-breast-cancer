@@ -152,7 +152,9 @@ ggplot(all, aes(x = estimate, y = -log10(p.value))) + geom_point(shape = 1) +
 
 
 # Create base plot to cut down code
-base <- ggplot(t1, aes((estimate), log10(p.value))) + geom_point(shape = 1) + 
+base <- ggplot(t1, aes((estimate), log10(p.value))) + 
+  #geom_point(shape = 21, fill = "lightgreen") + 
+  geom_point(shape = 1) + 
   theme_bw(base_size = 10) +
   xlab("Odds ratio per SD increase concentration") + 
   ylab(expression(paste(italic(P), "-value"))) +
@@ -165,7 +167,9 @@ base <- ggplot(t1, aes((estimate), log10(p.value))) + geom_point(shape = 1) +
 p1 <- base %+% xlim(0.8, 1.2) +
   scale_y_reverse(limits = c(0, -2.5), breaks = c(0:-2), labels = function(x) 10^x) +
   geom_text_repel(aes(label = display_name), size = 3, data = t1[t1$p.value < 0.15, ]) + 
-  labs(title = "", subtitle =  "All participants") +
+  #labs(title =  "All participants") + 
+  labs(title = "Breast cancer-metabolite associations",
+       subtitle =  "All participants") +
   annotate("text", x = 0.85, y=-1.37, size = 3, 
            label = expression(paste("Raw ", italic(P),"-threshold" )))
 
@@ -197,7 +201,9 @@ p4 <- base %+% t4 + xlim(c(0.3, 1.7)) +
   
 library(cowplot)
 plot_grid(p1, p3, p2, p4, labels = LETTERS[1:4], label_size = 12) 
+#plot_grid(p1, p3, p2, p4) 
 # Output at 8.18x8.41 inch
+
 
 # Sensitivity analysis for reviewers fasting status Dec 2020
 
