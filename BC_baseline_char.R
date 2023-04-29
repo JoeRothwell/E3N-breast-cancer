@@ -255,8 +255,13 @@ chisq.test(meta$MENOPAUSE, meta$GRADE)$p.value
 fisher.test(meta$MENOPAUSE, meta$STADE)$p.value
 
 
+# Get individual receptor status for cases
+table(meta$ER[meta$CT == 1], useNA = "always") # No missings
+table(meta$CERB2[meta$CT == 1], useNA = "always") # 568 missings
+table(meta$PR[meta$CT == 1], useNA = "always") # 190 missings
+
 
 # Identification of triple negative cases
-#sum(meta$CERB2 == 0 & meta$ER == 0 & meta$PR == 0, na.rm = T)
-#sum(meta$ER == 0 & meta$PR == 0, na.rm = T)
+sum(meta$CERB2 == 0 & meta$ER == 0 & meta$PR == 0, na.rm = T)
+sum(meta$ER == 0 & meta$PR == 0, na.rm = T)
 
